@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
+import { LOGIWA_LOGO_BASE64 } from './logo_base64';
 import { auth, db } from './firebase';
 import {
   signInWithEmailAndPassword,
@@ -317,32 +318,27 @@ function App() {
     try {
       setCycleStatus('running');
 
-      // To capture full content, we temporarily disable scrolling behavior and capture the actual offset
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        width: element.offsetWidth,
-        height: element.scrollHeight,
-        windowWidth: element.offsetWidth,
-        windowHeight: element.scrollHeight,
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.getElementById('report-pdf-template');
-          clonedElement.style.height = 'auto';
-          clonedElement.style.overflow = 'visible';
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = 210; // A4 width in mm
+
+      // We use the modern .html() method which handles multi-page and CORS better
+      await pdf.html(element, {
+        callback: function (doc) {
+          doc.save(`${report.name || 'Logiwa_Intel_Report'}.pdf`);
+          setCycleStatus('success');
+        },
+        x: 0,
+        y: 0,
+        width: pdfWidth,
+        windowWidth: 800, // Fixed width for consistent rendering scale
+        autoPaging: 'text',
+        margin: [10, 10, 10, 10], // standard margins
+        html2canvas: {
+          useCORS: true,
+          logging: false,
+          scale: 1, // Let jspdf handle the scaling
         }
       });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      // Handle multi-page if height exceeds A4 ratio - simple version for now
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${report.name || 'Logiwa_Intel_Report'}.pdf`);
-      setCycleStatus('success');
     } catch (e) {
       console.error("PDF Export failed", e);
       setCycleStatus('error');
@@ -750,7 +746,7 @@ function App() {
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '45px' }} />
+                    <img src={LOGIWA_LOGO_BASE64} alt="Logiwa" style={{ height: '45px' }} />
                     <p style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>Automated Assessment v1.2</p>
                   </div>
                 </div>
@@ -823,7 +819,7 @@ function App() {
                     © 2026 Logiwa WMS Integration Services. All rights reserved.
                     This report is strictly confidential and intended for intended recipients only.
                   </div>
-                  <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '25px', opacity: 0.5 }} />
+                  <img src={LOGIWA_LOGO_BASE64} alt="Logiwa" style={{ height: '25px', opacity: 0.5 }} />
                 </div>
               </div>
             </div>
