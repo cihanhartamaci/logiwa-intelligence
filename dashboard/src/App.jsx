@@ -242,15 +242,16 @@ function App() {
     const LOGO_MAP = {
       'Shopify': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopify_logo_2018.svg/512px-Shopify_logo_2018.svg.png',
       'NetSuite': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Oracle_NetSuite_logo.svg/512px-Oracle_NetSuite_logo.svg.png',
-      'FedEx': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/FedEx_Corporation_-_Logo.svg/512px-FedEx_Corporation_-_Logo.svg.png',
+      'FedEx': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/FedEx_Express_logo.svg/512px-FedEx_Express_logo.svg.png',
       'Amazon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/512px-Amazon_logo.svg.png',
-      'Walmart': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Walmart_logo.svg/512px-Walmart_logo.svg.png',
+      'Walmart': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Walmart_logo.svg/512px-Walmart_logo.svg.png',
       'TikTok': 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/TikTok_logo.svg/512px-TikTok_logo.svg.png',
       'Etsy': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Etsy_logo.svg/512px-Etsy_logo.svg.png',
-      'Shippo': 'https://goshippo.com/static/img/shippo-logo.png'
+      'Shippo': 'https://upload.wikimedia.org/wikipedia/commons/3/30/Shippo_Logo.png'
     };
+    const searchName = name.toLowerCase();
     for (const key in LOGO_MAP) {
-      if (name.includes(key)) return LOGO_MAP[key];
+      if (searchName.includes(key.toLowerCase())) return LOGO_MAP[key];
     }
     return null;
   };
@@ -261,10 +262,22 @@ function App() {
 
     try {
       setCycleStatus('running');
+
+      // To capture full content, we temporarily disable scrolling behavior and capture the actual offset
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: element.offsetWidth,
+        height: element.scrollHeight,
+        windowWidth: element.offsetWidth,
+        windowHeight: element.scrollHeight,
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.getElementById('report-pdf-template');
+          clonedElement.style.height = 'auto';
+          clonedElement.style.overflow = 'visible';
+        }
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -272,6 +285,7 @@ function App() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
+      // Handle multi-page if height exceeds A4 ratio - simple version for now
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`${report.name || 'Logiwa_Intel_Report'}.pdf`);
       setCycleStatus('success');
@@ -659,70 +673,103 @@ function App() {
             {/* PDF Viewport (A4 Ratio) */}
             <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}>
               <div id="report-pdf-template" style={{
-                width: '210mm',
-                minHeight: '297mm',
+                width: '100%',
+                maxWidth: '210mm',
                 background: '#fff',
-                padding: '40px',
+                padding: '50px',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
                 fontFamily: '"Inter", "Segoe UI", sans-serif',
-                position: 'relative'
+                position: 'relative',
+                color: '#1a1a1a'
               }}>
-                {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #000', paddingBottom: '20px', marginBottom: '30px' }}>
-                  <div>
-                    <h1 style={{ fontSize: '28px', margin: 0, fontWeight: '800', letterSpacing: '-1px' }}>INTELLIGENCE DISCOVERY</h1>
-                    <p style={{ color: '#666', marginTop: '5px', fontSize: '14px' }}>Logiwa WMS Integration Audit | {new Date(selectedReport.timestamp?.seconds * 1000).toLocaleDateString()}</p>
-                  </div>
-                  <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '40px' }} />
+                {/* Decorative Watermark */}
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', opacity: 0.03, fontSize: '120px', fontWeight: '900', zIndex: 0, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                  LOGIWA INTELLIGENCE
                 </div>
 
-                {/* Subheader Info */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px', background: '#f9f9f9', padding: '20px', borderRadius: '8px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '4px solid #3b82f6', paddingBottom: '30px', marginBottom: '40px', position: 'relative', zIndex: 1 }}>
                   <div>
-                    <p style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Report ID</p>
-                    <p style={{ fontWeight: '600' }}>#{selectedReport.id?.substring(0, 8).toUpperCase()}</p>
+                    <h1 style={{ fontSize: '32px', margin: 0, fontWeight: '800', letterSpacing: '-1.5px', color: '#111' }}>INTELLIGENCE DISCOVERY</h1>
+                    <p style={{ color: '#3b82f6', marginTop: '8px', fontSize: '15px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      Integration Audit | {new Date(selectedReport.timestamp?.seconds * 1000).toLocaleDateString()}
+                    </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Alert Count</p>
-                    <p style={{ fontWeight: '600' }}>{selectedReport.alert_count || 0} Critical/High Updates</p>
+                    <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '45px' }} />
+                    <p style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>Automated Assessment v1.2</p>
+                  </div>
+                </div>
+
+                {/* Subheader Info Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '50px', position: 'relative', zIndex: 1 }}>
+                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                    <p style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '5px' }}>Report Signature</p>
+                    <p style={{ fontWeight: '700', fontSize: '14px' }}>#{selectedReport.id?.substring(0, 12).toUpperCase()}</p>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                    <p style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '5px' }}>Critical Discoveries</p>
+                    <p style={{ fontWeight: '700', fontSize: '14px', color: '#ef4444' }}>{selectedReport.alert_count || 0} Priority Alerts</p>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                    <p style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '5px' }}>Verified At</p>
+                    <p style={{ fontWeight: '700', fontSize: '14px' }}>{new Date().toLocaleTimeString()}</p>
                   </div>
                 </div>
 
                 {/* Content Sections */}
-                {parseReportMarkdown(selectedReport.content).map((item, idx) => (
-                  <div key={idx} style={{ marginBottom: '40px', pageBreakInside: 'avoid' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-                      {getLogo(item.title) && <img src={getLogo(item.title)} alt={item.title} style={{ height: '24px', maxWidth: '80px', objectFit: 'contain' }} />}
-                      <h2 style={{ fontSize: '20px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        background: item.impact === 'High' ? '#fee2e2' : item.impact === 'Medium' ? '#fef3c7' : '#d1fae5',
-                        color: item.impact === 'High' ? '#ef4444' : item.impact === 'Medium' ? '#f59e0b' : '#10b981',
-                        marginLeft: 'auto'
-                      }}>
-                        {item.impact.toUpperCase()} IMPACT
-                      </span>
-                    </div>
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  {parseReportMarkdown(selectedReport.content).map((item, idx) => (
+                    <div key={idx} style={{ marginBottom: '50px', pageBreakInside: 'avoid' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+                        <div style={{ width: '60px', height: '60px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
+                          {getLogo(item.title) ? (
+                            <img src={getLogo(item.title)} alt={item.title} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+                          ) : (
+                            <div style={{ fontSize: '20px' }}>📦</div>
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h2 style={{ fontSize: '22px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                          <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                            <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
+                            <span style={{
+                              padding: '2px 10px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              background: item.impact === 'High' ? '#ef4444' : item.impact === 'Medium' ? '#f59e0b' : '#10b981',
+                              color: '#fff',
+                            }}>
+                              {item.impact.toUpperCase()} IMPACT
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
-                    <div style={{ borderLeft: '4px solid #eee', paddingLeft: '20px' }}>
-                      <p style={{ fontWeight: '600', marginBottom: '10px', fontSize: '15px' }}>Summary</p>
-                      <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#444', marginBottom: '15px' }}>{item.summary}</p>
-
-                      <p style={{ fontWeight: '600', marginBottom: '10px', fontSize: '15px' }}>Recommended Engineering Action</p>
-                      <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', fontSize: '14px', border: '1px solid #e2e8f0', color: '#1e293b' }}>
-                        {item.action_required}
+                      <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: '12px', overflow: 'hidden' }}>
+                        <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
+                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '13px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
+                          <p style={{ fontSize: '15px', lineHeight: '1.6', color: '#334155' }}>{item.summary}</p>
+                        </div>
+                        <div style={{ padding: '20px', background: '#f1f5f9' }}>
+                          <p style={{ fontWeight: '800', marginBottom: '10px', fontSize: '13px', textTransform: 'uppercase', color: '#64748b' }}>Operational Mandate</p>
+                          <p style={{ fontWeight: '600', fontSize: '15px', color: '#0f172a', lineHeight: '1.5' }}>
+                            {item.action_required}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
 
-                {/* Footer */}
-                <div style={{ marginTop: '50px', borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center', fontSize: '12px', color: '#999' }}>
-                  This document is auto-generated by Logiwa Integration Intelligence Bot.
-                  Confidential and Proprietary to Logiwa WMS.
+                {/* Footer Section */}
+                <div style={{ marginTop: '60px', borderTop: '2px solid #3b82f6', paddingTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', maxWidth: '400px' }}>
+                    © 2026 Logiwa WMS Integration Services. All rights reserved.
+                    This report is strictly confidential and intended for intended recipients only.
+                  </div>
+                  <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '25px', opacity: 0.5 }} />
                 </div>
               </div>
             </div>
