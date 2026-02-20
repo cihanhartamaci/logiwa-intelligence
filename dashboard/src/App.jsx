@@ -29,8 +29,10 @@ function App() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [intelReports, setIntelReports] = useState([]);
   const [githubPat, setGithubPat] = useState(localStorage.getItem('gh_pat') || '');
+  const [githubRepo, setGithubRepo] = useState(localStorage.getItem('gh_repo') || 'cihanhartamaci/logiwa-intelligence');
   const [frequency, setFrequency] = useState(localStorage.getItem('monitoring_frequency') || 'Daily');
   const [isPaused, setIsPaused] = useState(false);
+  const [cycleStatus, setCycleStatus] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -146,17 +148,50 @@ function App() {
 
   const runCycle = async () => {
     if (!githubPat) {
-      alert("Please set your GitHub Personal Access Token in Settings first!\n\nRequirement: Token with 'repo' and 'workflow' scopes.");
+      alert("Please set your GitHub Personal Access Token in Settings first!");
+      setShowSettings(true);
+      return;
+    }
+    if (!githubRepo) {
+      alert("Please set your GitHub Repository (e.g. username/repo) in Settings.");
       setShowSettings(true);
       return;
     }
 
-    alert("Triggering GitHub Action via API...\nThis will analyze last release notes and send notifications for important changes.");
-    // Real implementation: Octokit or Fetch to /repos/:owner/:repo/actions/workflows/:id/dispatches
+    const [owner, repo] = githubRepo.split('/');
+    const workflowFile = 'monitor_intelligence.yml';
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
+
+    setCycleStatus('running');
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubPat}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' })
+      });
+
+      if (response.status === 204) {
+        setCycleStatus('success');
+        alert('Intelligence Cycle triggered successfully!\n\nGitHub Action is now running. Check GitHub Actions tab for live logs.');
+      } else {
+        const err = await response.json().catch(() => ({}));
+        setCycleStatus('error');
+        alert(`Failed to trigger action.\nStatus: ${response.status}\n${err.message || ''}\n\nCheck that your PAT has "repo" and "workflow" scopes.`);
+      }
+    } catch (e) {
+      setCycleStatus('error');
+      alert('Network error: ' + e.message);
+    }
+    setTimeout(() => setCycleStatus(null), 5000);
   };
 
   const saveSettings = () => {
     localStorage.setItem('gh_pat', githubPat);
+    localStorage.setItem('gh_repo', githubRepo);
     localStorage.setItem('monitoring_frequency', frequency);
     setShowSettings(false);
     alert("Settings saved!");
@@ -495,6 +530,19 @@ function App() {
               </p>
             </div>
             <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Repository</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="username/repo-name"
+                value={githubRepo}
+                onChange={e => setGithubRepo(e.target.value)}
+              />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                Format: <code>owner/repository</code> (e.g. cihanhartamaci/logiwa-intelligence)
+              </p>
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Monitoring Frequency</label>
               <select className="input-field" value={frequency} onChange={e => setFrequency(e.target.value)}>
                 <option>Hourly</option>
@@ -568,7 +616,22 @@ function App() {
           </div>
           <div className="actions">
             <button className="btn" onClick={() => setShowSettings(true)}>Settings</button>
-            <button className="btn btn-primary" onClick={runCycle}>Run Intelligence Cycle</button>
+            <button
+              className="btn btn-primary"
+              onClick={runCycle}
+              disabled={cycleStatus === 'running'}
+              style={{
+                background: cycleStatus === 'success' ? 'var(--accent-emerald)' :
+                  cycleStatus === 'error' ? 'var(--accent-red)' :
+                    cycleStatus === 'running' ? '#555' : '',
+                opacity: cycleStatus === 'running' ? 0.7 : 1
+              }}
+            >
+              {cycleStatus === 'running' ? 'Triggering...' :
+                cycleStatus === 'success' ? 'Triggered!' :
+                  cycleStatus === 'error' ? 'Failed - Check PAT' :
+                    'Run Intelligence Cycle'}
+            </button>
           </div>
         </header>
 
