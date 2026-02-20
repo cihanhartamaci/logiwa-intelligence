@@ -18,6 +18,11 @@ dist-ssr/
 .DS_Store
 Thumbs.db
 
+# Firebase Secrets
+serviceAccountKey.json
+.firebase/
+.firebaserc
+
 # Project Stats
 # data/state.json
 intelligence_bot.log
