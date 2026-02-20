@@ -322,7 +322,12 @@ function App() {
               ))}
               {monitoredUrls.length === 0 && (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No sources found in database.</td>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ marginBottom: '1rem' }}>No sources found in your database.</div>
+                    <button className="btn btn-primary" onClick={seedIndustrySources}>
+                      Import Official Integration Sources
+                    </button>
+                  </td>
                 </tr>
               )}
             </tbody>
