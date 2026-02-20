@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
+import html2pdf from 'html2pdf.js';
 import { LOGIWA_LOGO_BASE64 } from './logo_base64';
 import { auth, db } from './firebase';
 import {
@@ -318,27 +319,26 @@ function App() {
     try {
       setCycleStatus('running');
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = 210; // A4 width in mm
-
-      // We use the modern .html() method which handles multi-page and CORS better
-      await pdf.html(element, {
-        callback: function (doc) {
-          doc.save(`${report.name || 'Logiwa_Intel_Report'}.pdf`);
-          setCycleStatus('success');
-        },
-        x: 0,
-        y: 0,
-        width: pdfWidth,
-        windowWidth: 800, // 800px is perfect for A4 @ 96DPI
-        autoPaging: 'text',
-        margin: [10, 10, 10, 10], // standard margins
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `${report.name || 'Logiwa_Intel_Report'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
+          scale: 2,
           useCORS: true,
-          logging: false,
-          scale: 1, // Let jspdf handle the scaling
-        }
-      });
+          letterRendering: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 800 // Anchor at 800px for consistent scaling
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      // html2pdf returns a promise
+      await html2pdf().set(opt).from(element).save();
+
+      setCycleStatus('success');
     } catch (e) {
       console.error("PDF Export failed", e);
       setCycleStatus('error');
@@ -723,10 +723,9 @@ function App() {
             {/* PDF Viewport (A4 Ratio) */}
             <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}>
               <div id="report-pdf-template" style={{
-                width: '800px', // Fixed width for consistent PDF conversion
+                width: '750px', // Optimized for A4 output @ windowWidth 800
                 background: '#fff',
                 padding: '40px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
                 fontFamily: '"Inter", "Segoe UI", sans-serif',
                 position: 'relative',
                 color: '#1a1a1a',
