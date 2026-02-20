@@ -61,6 +61,27 @@ class FirebaseManager:
             logger.error(f"Error fetching URLs from Firestore: {e}")
             return []
 
+    def get_system_config(self):
+        """Fetches the global system configuration."""
+        if not self.db:
+            return {}
+        try:
+            doc = self.db.collection("config").document("system").get()
+            return doc.to_dict() if doc.exists else {}
+        except Exception as e:
+            logger.error(f"Error fetching system config: {e}")
+            return {}
+
+    def update_system_config(self, config_data):
+        """Updates the global system configuration."""
+        if not self.db:
+            return
+        try:
+            self.db.collection("config").document("system").set(config_data, merge=True)
+            logger.info("System configuration updated in Firestore.")
+        except Exception as e:
+            logger.error(f"Error updating system config: {e}")
+
     def update_url_status(self, url_id, status_data):
         """
         Updates the status fields for a specific monitored URL.
@@ -85,6 +106,8 @@ class FirebaseManager:
                 **report_data,
                 "timestamp": firestore.SERVER_TIMESTAMP
             })
+            # Also update last_run in system config
+            self.update_system_config({"last_run": firestore.SERVER_TIMESTAMP})
             logger.info("Intelligence report saved to Firestore.")
         except Exception as e:
             logger.error(f"Error saving report to Firestore: {e}")

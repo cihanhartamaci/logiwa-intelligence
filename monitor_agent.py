@@ -35,6 +35,35 @@ def job():
     analyzer = LLMAnalyzer(config)
     notifier = Notifier(config)
     
+    # 0. Check System Config (Pause/Frequency)
+    sys_config = firebase.get_system_config()
+    if sys_config.get('is_paused'):
+        logger.info("Workflow is PAUSED via dashboard. Skipping cycle.")
+        return
+
+    frequency = sys_config.get('frequency', 'Daily')
+    last_run = sys_config.get('last_run')
+    
+    if last_run and frequency != 'Manual':
+        from datetime import datetime, timezone
+        # last_run is usually already a datetime object from firebase-admin
+        now = datetime.now(timezone.utc)
+        # Ensure last_run is offset-aware for comparison
+        if last_run.tzinfo is None:
+            last_run = last_run.replace(tzinfo=timezone.utc)
+            
+        diff = now - last_run
+        
+        if frequency == 'Daily' and diff.total_seconds() < 23 * 3600:
+            logger.info(f"Skipping: Daily frequency not met. Last run: {last_run}")
+            return
+        if frequency == 'Weekly' and diff.total_seconds() < 6 * 24 * 3600:
+            logger.info(f"Skipping: Weekly frequency not met. Last run: {last_run}")
+            return
+        if frequency == 'Monthly' and diff.total_seconds() < 28 * 24 * 3600:
+            logger.info(f"Skipping: Monthly frequency not met. Last run: {last_run}")
+            return
+
     # 1. Fetch URLs (Prioritize Firestore)
     sources = firebase.get_monitored_urls()
     if not sources:

@@ -13,7 +13,9 @@ import {
   query,
   orderBy,
   doc,
-  deleteDoc
+  deleteDoc,
+  setDoc,
+  updateDoc
 } from "firebase/firestore";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -74,9 +76,19 @@ function App() {
       setIntelReports(reports);
     });
 
+    // Sync System Config (Pause/Frequency)
+    const unsubConfig = onSnapshot(doc(db, "config", "system"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.is_paused !== undefined) setIsPaused(data.is_paused);
+        if (data.frequency) setFrequency(data.frequency);
+      }
+    });
+
     return () => {
       unsubUrls();
       unsubReports();
+      unsubConfig();
     };
   }, [user]);
 
@@ -191,10 +203,52 @@ function App() {
     setTimeout(() => setCycleStatus(null), 5000);
   };
 
-  const saveSettings = () => {
+  const toggleWorkflow = async (pause) => {
+    if (!githubPat || !githubRepo) {
+      alert("GitHub PAT and Repo must be set to pause/resume workflows.");
+      return;
+    }
+
+    const [owner, repo] = githubRepo.split('/');
+    const workflowFile = 'monitor_intelligence.yml';
+    const action = pause ? 'disable' : 'enable';
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/${action}`;
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${githubPat}`,
+          'Accept': 'application/vnd.github+json',
+        }
+      });
+
+      if (response.status === 204) {
+        // Update Firestore
+        await setDoc(doc(db, "config", "system"), { is_paused: pause }, { merge: true });
+        setIsPaused(pause);
+        alert(`Workflow ${pause ? 'paused' : 'resumed'} successfully!`);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(`Failed to ${action} workflow. Status: ${response.status}. ${err.message || ''}`);
+      }
+    } catch (e) {
+      alert('Error toggling workflow: ' + e.message);
+    }
+  };
+
+  const saveSettings = async () => {
     localStorage.setItem('gh_pat', githubPat);
     localStorage.setItem('gh_repo', githubRepo);
     localStorage.setItem('monitoring_frequency', frequency);
+
+    // Sync to Firestore for the bot agent
+    try {
+      await setDoc(doc(db, "config", "system"), { frequency }, { merge: true });
+    } catch (e) {
+      console.error("Failed to sync frequency to Firestore", e);
+    }
+
     setShowSettings(false);
     alert("Settings saved!");
   };
@@ -532,7 +586,7 @@ function App() {
           </p>
         </div>
         <div className="card-footer">
-          <button className="btn" onClick={() => setIsPaused(!isPaused)}>
+          <button className="btn" onClick={() => toggleWorkflow(!isPaused)}>
             {isPaused ? 'Resume Workflow' : 'Pause Workflow'}
           </button>
         </div>
