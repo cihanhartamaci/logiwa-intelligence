@@ -98,18 +98,24 @@ if __name__ == "__main__":
     if not os.getenv("OPENAI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
         logger.warning("No LLM API Key found! Analysis will be failing.")
 
-    # Schedule
-    # Run Intelligence Check every day at 09:00
-    schedule.every().day.at("09:00").do(job)
-    
-    # Run Internal Reporter every Friday at 16:00
-    schedule.every().friday.at("16:00").do(run_internal_reporter)
-    
-    logger.info("Logiwa Intelligence Bot Started. Waiting for schedule...")
-    
-    # Initial run for testing (Comment out in production)
-    # job()
-    
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+    # Check if running in GitHub Actions (Single Run)
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        logger.info("Detected GitHub Actions environment. Running one-time cycle...")
+        job()
+        # Optional: Run reporter if it's Friday in UTC? 
+        # For now, just run the main job.
+        logger.info("CI Run Completed. Exiting.")
+    else:
+        # Schedule
+        # Run Intelligence Check every day at 09:00
+        schedule.every().day.at("09:00").do(job)
+        
+        # Run Internal Reporter every Friday at 16:00
+        schedule.every().friday.at("16:00").do(run_internal_reporter)
+        
+        logger.info("Logiwa Intelligence Bot Started. Waiting for schedule...")
+        
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
+
