@@ -8,6 +8,7 @@ from src.fetcher import Fetcher
 from src.llm_analyzer import LLMAnalyzer
 from src.notifications import Notifier
 from src.internal_reporter import InternalReporter
+from src.firebase_manager import FirebaseManager
 
 # Setup Logging
 logging.basicConfig(
@@ -73,6 +74,22 @@ def job():
             }
             alerts.append(alert)
             
+            # Sync Status back to Firestore if we have a source_id
+            source_id = update.get('id')
+            if firebase and source_id:
+                status_map = {
+                    "High": "Action Required",
+                    "Medium": "Needs Review",
+                    "Low": "Ready"
+                }
+                status_data = {
+                    "last_status": status_map.get(analysis['impact_level'], "Ready"),
+                    "last_impact": analysis['type'],
+                    "next_action": analysis.get('action_required', "Monitoring")
+                }
+                logger.info(f"Updating Firestore status for {update['source']}...")
+                firebase.update_url_status(source_id, status_data)
+
             # Format for the detailed report content
             report_content += f"## {update['source']}\n"
             report_content += f"**Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n\n"

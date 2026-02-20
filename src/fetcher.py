@@ -120,6 +120,7 @@ class Fetcher:
                         context_content += deep_text
 
                     updates.append({
+                        "id": source.get("id"),
                         "source": source['name'],
                         "url": source['url'],
                         "content": context_content

@@ -23,16 +23,7 @@ function App() {
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
   const [newUrl, setNewUrl] = useState({ name: '', url: '', category: 'ERPs' });
-  const [monitoredUrls, setMonitoredUrls] = useState([
-    { name: 'NetSuite Release Notes', url: 'https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html', category: 'ERPs' },
-    { name: 'Shopify Changelog', url: 'https://shopify.dev/changelog', category: 'Marketplaces' },
-    { name: 'Shippo Changelog', url: 'https://goshippo.com/docs/changelog/', category: 'Carriers' },
-    { name: 'FedEx Announcements', url: 'https://developer.fedex.com/api/en-us/announcements.html', category: 'Carriers' },
-    { name: 'Amazon SP-API Blog', url: 'https://developer-docs.amazon.com/sp-api/blog', category: 'Marketplaces' },
-    { name: 'Walmart Developer News', url: 'https://developer.walmart.com/news', category: 'Marketplaces' },
-    { name: 'TikTok Shop News', url: 'https://developers.tiktok-shops.com/documents/news', category: 'Marketplaces' },
-    { name: 'Etsy Developer News', url: 'https://www.etsy.com/developers/news', category: 'Marketplaces' },
-  ]);
+  const [monitoredUrls, setMonitoredUrls] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -117,13 +108,12 @@ function App() {
     signOut(auth);
   };
 
-  const readinessData = [
-    { integration: 'FedEx (SOAP)', status: 'Action Required', impact: 'Breaking Change', action: 'Migrate to REST' },
-    { integration: 'Amazon SP-API', status: 'Needs Review', impact: 'Breaking Change', action: 'Verify Billing' },
-    { integration: 'NetSuite', status: 'Ready', impact: 'New Capability', action: 'Review AI Features' },
-    { integration: 'Shopify', status: 'Needs Review', impact: 'Maintenance', action: 'Plan GraphQL Migration' },
-    { integration: 'Walmart', status: 'Ready', impact: 'New Capability', action: 'Evaluate Inventory API' },
-  ];
+  const readinessData = monitoredUrls.map(url => ({
+    integration: url.name,
+    status: url.last_status || 'Ready',
+    impact: url.last_impact || 'No Changes',
+    action: url.next_action || 'Monitoring'
+  }));
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
 

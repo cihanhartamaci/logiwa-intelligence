@@ -36,6 +36,7 @@ class FirebaseManager:
             for doc in docs:
                 data = doc.to_dict()
                 urls.append({
+                    "id": doc.id,
                     "name": data.get("name"),
                     "url": data.get("url"),
                     "category": data.get("category", "General")
@@ -44,6 +45,20 @@ class FirebaseManager:
         except Exception as e:
             logger.error(f"Error fetching URLs from Firestore: {e}")
             return []
+
+    def update_url_status(self, url_id, status_data):
+        """
+        Updates the status fields for a specific monitored URL.
+        status_data: dict with last_status, last_impact, next_action
+        """
+        if not self.db:
+            return
+        
+        try:
+            self.db.collection("monitored_urls").document(url_id).update(status_data)
+            logger.info(f"Updated Firestore status for {url_id}")
+        except Exception as e:
+            logger.error(f"Error updating URL status in Firestore: {e}")
 
     def save_report(self, report_data):
         if not self.db:
