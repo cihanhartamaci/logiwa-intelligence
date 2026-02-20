@@ -1,21 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
+import { auth, db } from './firebase';
+import {
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "firebase/auth";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  deleteDoc
+} from "firebase/firestore";
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
-  const [monitoredUrls, setMonitoredUrls] = useState([
-    { name: 'NetSuite Release Notes', url: 'https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html', category: 'ERPs' },
-    { name: 'FedEx API Announcements', url: 'https://developer.fedex.com/api/en-us/announcements.html', category: 'Carriers' },
-    { name: 'Amazon SP-API Blog', url: 'https://developer-docs.amazon.com/sp-api/blog', category: 'Marketplaces' },
-    { name: 'Shopify Changelog', url: 'https://shopify.dev/changelog', category: 'Marketplaces' },
-  ]);
   const [newUrl, setNewUrl] = useState({ name: '', url: '', category: 'ERPs' });
+  const [monitoredUrls, setMonitoredUrls] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [intelReports, setIntelReports] = useState([]);
   const [githubPat, setGithubPat] = useState(localStorage.getItem('gh_pat') || '');
   const [frequency, setFrequency] = useState('Daily');
   const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Sync URLs
+    const qUrls = query(collection(db, "monitored_urls"));
+    const unsubUrls = onSnapshot(qUrls, (snapshot) => {
+      const urls = [];
+      snapshot.forEach((doc) => {
+        urls.push({ id: doc.id, ...doc.data() });
+      });
+      setMonitoredUrls(urls);
+    });
+
+    // Sync Reports
+    const qReports = query(collection(db, "intel_reports"), orderBy("timestamp", "desc"));
+    const unsubReports = onSnapshot(qReports, (snapshot) => {
+      const reports = [];
+      snapshot.forEach((doc) => {
+        reports.push({ id: doc.id, ...doc.data() });
+      });
+      setIntelReports(reports);
+    });
+
+    return () => {
+      unsubUrls();
+      unsubReports();
+    };
+  }, [user]);
+
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      alert("Login Failed: " + error.message);
+    }
+  };
+
+  const handleLogout = () => {
+    signOut(auth);
+  };
 
   const readinessData = [
     { integration: 'FedEx (SOAP)', status: 'Action Required', impact: 'Breaking Change', action: 'Migrate to REST' },
@@ -27,12 +93,23 @@ function App() {
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
 
-  const handleAddUrl = (e) => {
+  const handleAddUrl = async (e) => {
     e.preventDefault();
     if (newUrl.name && newUrl.url) {
-      setMonitoredUrls([...monitoredUrls, newUrl]);
-      setNewUrl({ name: '', url: '', category: 'ERPs' });
-      alert(`Source "${newUrl.name}" added successfully to category ${newUrl.category}.`);
+      try {
+        await addDoc(collection(db, "monitored_urls"), newUrl);
+        setNewUrl({ name: '', url: '', category: 'ERPs' });
+      } catch (error) {
+        alert("Error adding source: " + error.message);
+      }
+    }
+  };
+
+  const handleDeleteUrl = async (id) => {
+    try {
+      await deleteDoc(doc(db, "monitored_urls", id));
+    } catch (error) {
+      alert("Error deleting source: " + error.message);
     }
   };
 
@@ -191,17 +268,26 @@ function App() {
                 <th>Category</th>
                 <th>Endpoint URL</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {monitoredUrls.map((s, i) => (
-                <tr key={i}>
+                <tr key={s.id || i}>
                   <td style={{ fontWeight: '500' }}>{s.name}</td>
                   <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--accent-cyan)' }}>{s.category}</span></td>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.url}</td>
                   <td><span className="badge badge-green">Monitoring</span></td>
+                  <td>
+                    <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-red)' }} onClick={() => handleDeleteUrl(s.id)}>Remove</button>
+                  </td>
                 </tr>
               ))}
+              {monitoredUrls.length === 0 && (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No sources found in database.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -217,7 +303,7 @@ function App() {
           <div className="card-body">
             <ul style={{ listStyle: 'none' }}>
               {monitoredUrls.filter(u => u.category === cat).map((u, i) => (
-                <li key={i} style={{ marginBottom: '0.5rem' }}>✅ {u.name} (Active)</li>
+                <li key={u.id || i} style={{ marginBottom: '0.5rem' }}>✅ {u.name} (Active)</li>
               ))}
               {monitoredUrls.filter(u => u.category === cat).length === 0 && (
                 <li style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No active sources in this category.</li>
@@ -230,11 +316,6 @@ function App() {
   );
 
   const renderReports = () => {
-    const reports = [
-      { id: 1, name: 'Weekly Intel Report - Feb 20', date: '2026-02-20', status: 'Sent', content: '# Weekly Intel Report - Feb 20\n\n## Summary\nCritical updates detected in FedEx and Amazon SP-API...\n\n### NetSuite 2026.1\n- AI-Powered Close Manager features announced.\n- Phased deployment started globally.\n\n### FedEx SOAP Retirement\n- Migration mandate reinforced for June 2026.\n- REST API documentation updated with new OAuth flow.' },
-      { id: 2, name: 'Weekly Intel Report - Feb 13', date: '2026-02-13', status: 'Sent', content: '# Weekly Intel Report - Feb 13\n\n## Summary\nMaintenance updates for Shopify and Walmart...' },
-    ];
-
     return (
       <section className="data-table-container">
         <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
@@ -245,20 +326,25 @@ function App() {
             <thead>
               <tr>
                 <th>Report Name</th>
-                <th>Date Generated</th>
+                <th>Date</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {reports.map(report => (
+              {intelReports.map(report => (
                 <tr key={report.id}>
-                  <td>{report.name}</td>
-                  <td>{report.date}</td>
-                  <td><span className="badge badge-green">{report.status}</span></td>
+                  <td>{report.name || `Intel Report - ${new Date(report.timestamp?.seconds * 1000).toLocaleDateString()}`}</td>
+                  <td>{report.timestamp ? new Date(report.timestamp.seconds * 1000).toDateString() : 'Pending'}</td>
+                  <td><span className="badge badge-green">{report.status || 'Archived'}</span></td>
                   <td><button className="btn" onClick={() => openReport(report)}>View PDF</button></td>
                 </tr>
               ))}
+              {intelReports.length === 0 && (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No reports generated yet. Run a cycle to start.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -317,6 +403,37 @@ function App() {
         );
     }
   };
+
+  if (loading) {
+    return (
+      <div style={{ background: '#0d1117', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+        <p>Initializing Logiwa Intelligence...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="login-container">
+        <div className="login-card glass">
+          <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ width: '150px', marginBottom: '2rem' }} />
+          <h2>Admin Dashboard</h2>
+          <form onSubmit={handleLogin} style={{ width: '100%' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Email Address</label>
+              <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Password</label>
+              <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Login to Terminal</button>
+          </form>
+          <p style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Logiwa Integration Team Access Only</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -398,7 +515,8 @@ function App() {
           ))}
         </ul>
         <div className="sidebar-footer">
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>v1.1.0-beta</p>
+          <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.0-secure</p>
         </div>
       </aside>
 
@@ -406,7 +524,7 @@ function App() {
         <header className="header">
           <div className="title-area">
             <h1>{activeTab}</h1>
-            <p>Intelligence summary for the Logiwa Integration Team.</p>
+            <p>Admin Session: {user.email}</p>
           </div>
           <div className="actions">
             <button className="btn" onClick={() => setShowSettings(true)}>Settings</button>

@@ -31,25 +31,34 @@ class LLMAnalyzer:
         
     def analyze(self, content):
         prompt = f"""
-        You are an Integration Architect for Logiwa WMS. Analyze the following update text for impact.
+        You are an Integration Architect for Logiwa WMS. Analyze the following update text for deep technical impact.
         
         TEXT:
-        {content[:4000]} # Truncate to avoid limit issues
+        {content[:6000]} # Increased context limit
+        
+        Your analysis must be detailed and professional.
         
         Task:
-        1. Summarize the update in 1 sentence.
-        2. Determine Impact Level: High (Breaking Change), Medium (New Feature/Risk), Low (Maintenance/Irrelevant).
-        3. Determine Type: Breaking Change, New Capability, Maintenance, Info.
-        4. Is it relevant to WMS/Shipping/Ecommerce integrations?
+        1. 'summary': 1-2 sentence overview.
+        2. 'details': A detailed list of specific technical updates (e.g. "Endpoint X is deprecated", "New field Y added to JSON").
+        3. 'logiwa_impact': Specific analysis on how this affects Logiwa's standard integration logic.
+        4. 'action_required': Specific technical steps the engineering team must take (e.g. "Migrate to OAuth 2.0", "Update payload schema").
+        5. 'impact_level': High (Breaking), Medium (New Risk/Capability), Low (Info).
+        6. 'type': Breaking Change, New Capability, Maintenance, Info.
+        7. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce?
         
         Output JSON format:
         {{
             "summary": "...",
+            "details": ["...", "..."],
+            "logiwa_impact": "...",
+            "action_required": "...",
             "impact_level": "High/Medium/Low",
             "type": "...",
-            "is_relevant": true/false
+            "is_relevant": true
         }}
         """
+
         
         try:
             if not self.client:

@@ -29,43 +29,76 @@ def job():
     config = load_config()
     
     # Initialize Modules
+    firebase = FirebaseManager()
     fetcher = Fetcher()
     analyzer = LLMAnalyzer(config)
     notifier = Notifier(config)
     
-    # 1. Fetch Updates
-    updates = fetcher.check_sources(config['sources'])
+    # 1. Fetch URLs (Prioritize Firestore)
+    sources = firebase.get_monitored_urls()
+    if not sources:
+        logger.info("No URLs found in Firestore, falling back to config.yaml")
+        sources = config.get('sources', [])
+    
+    if not sources:
+        logger.warning("No sources to monitor. Exiting.")
+        return
+
+    # 2. Fetch Updates
+    updates = fetcher.check_sources(sources)
     
     if not updates:
         logger.info("No new content changes detected.")
         return
 
-    # 2. Analyze Updates
+    # 3. Analyze Updates
     alerts = []
+    report_content = "# Intelligence Discovery Report\n\n"
+    report_content += f"**Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    
     for update in updates:
         logger.info(f"Analyzing update from: {update['source']}")
         analysis = analyzer.analyze(update['content'])
         
-        if analysis['is_relevant']:
+        if analysis.get('is_relevant'):
             alert = {
                 "source": update['source'],
                 "url": update['url'],
                 "summary": analysis['summary'],
-                "impact_level": analysis['impact_level'], # High, Medium, Low
-                "type": analysis['type'] # Breaking Change, Maintenance, etc.
+                "details": analysis.get('details', []),
+                "logiwa_impact": analysis.get('logiwa_impact', 'N/A'),
+                "action_required": analysis.get('action_required', 'N/A'),
+                "impact_level": analysis['impact_level'],
+                "type": analysis['type']
             }
             alerts.append(alert)
             
-            # 3. Immediate Alerting (if High or Medium Impact)
+            # Format for the detailed report content
+            report_content += f"## {update['source']}\n"
+            report_content += f"**Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n\n"
+            report_content += f"### Summary\n{analysis['summary']}\n\n"
+            report_content += "### Technical Details\n"
+            for detail in analysis.get('details', []):
+                report_content += f"- {detail}\n"
+            report_content += f"\n### Logiwa Impact\n{analysis.get('logiwa_impact')}\n\n"
+            report_content += f"### Action Required\n{analysis.get('action_required')}\n\n"
+            report_content += "---\n\n"
+
+            # 4. Immediate Alerting (if High or Medium Impact)
             if analysis['impact_level'] in ['High', 'Medium']:
                 notifier.send_slack_alert(alert)
 
-        # Throttling to avoid Gemini Rate Limits (Free Tier)
-        logger.info("Sleeping 15s to respect Rate Limits...")
-        time.sleep(15)
+        logger.info("Sleeping 10s to respect Rate Limits...")
+        time.sleep(10)
 
-    # 4. Weekly Summary (if any alerts exists)
+    # 5. Persistence (Save to Firestore)
     if alerts:
+        firebase.save_report({
+            "name": f"Intel Report - {time.strftime('%b %d, %Y')}",
+            "content": report_content,
+            "status": "Ready",
+            "alert_count": len(alerts)
+        })
         notifier.send_weekly_email(alerts)
     
     logger.info("Intelligence Cycle Completed.")

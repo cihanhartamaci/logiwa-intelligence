@@ -45,24 +45,54 @@ class Fetcher:
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # Remove script and style elements
-            for script in soup(["script", "style", "meta", "noscript", "header", "footer"]):
+            for script in soup(["script", "style", "meta", "noscript", "header", "footer", "nav"]):
                 script.extract()
 
             if selector:
                 elements = soup.select(selector)
                 if elements:
-                    text = "\n".join([el.get_text(strip=True) for el in elements])
+                    text = "\n".join([el.get_text(separator=' ', strip=True) for el in elements])
                 else:
-                    logger.warning(f"Selector {selector} found no content at {url}. Falling back to full body.")
                     text = soup.get_text(separator='\n', strip=True)
             else:
                 text = soup.get_text(separator='\n', strip=True)
             
-            return text
+            return text, soup
             
         except requests.RequestException as e:
             logger.error(f"Error fetching {url}: {e}")
-            return None
+            return None, None
+
+    def fetch_deep_content(self, url, base_soup):
+        """
+        Looks for 'Detail' or 'Read More' type links related to releases and fetches their content.
+        """
+        logger.info(f"Performing deep fetch for {url}...")
+        detail_links = []
+        
+        # Heuristic for detail links: containing 'release', 'v[0-9]', 'update', or 'news'
+        for a in base_soup.find_all('a', href=True):
+            href = a['href']
+            text = a.get_text().lower()
+            if any(k in text or k in href.lower() for k in ['release', 'update', 'v2.', '2026', 'changelog']):
+                # Resolve relative URLs
+                if href.startswith('/'):
+                    from urllib.parse import urljoin
+                    href = urljoin(url, href)
+                if href.startswith('http') and href not in detail_links:
+                    detail_links.append(href)
+            if len(detail_links) >= 3: # Cap at 3 detailed links to avoid bloat
+                break
+        
+        deep_text = ""
+        for link in detail_links:
+            logger.info(f"Fetching sub-detail: {link}")
+            text, _ = self.fetch_url(link)
+            if text:
+                deep_text += f"\n--- SUB-DETAIL FROM {link} ---\n{text[:2000]}\n"
+        
+        return deep_text
+
 
     def check_sources(self, sources_config):
         """
@@ -73,18 +103,26 @@ class Fetcher:
         
         for source in sources_config:
             logger.info(f"Checking source: {source['name']}")
-            content = self.fetch_url(source['url'], source.get('selector'))
+            content, soup = self.fetch_url(source['url'], source.get('selector'))
             
             if content:
-                current_hash = self.get_content_hash(content)
+                hash_text = content[:5000] # Use a stable prefix for hashing
+                current_hash = self.get_content_hash(hash_text)
                 previous_hash = self.state.get(source['name'])
                 
                 if current_hash != previous_hash:
                     logger.info(f"New content detected for: {source['name']}")
+                    
+                    # For new content, we perform a deep fetch to get better context
+                    context_content = content
+                    if soup:
+                        deep_text = self.fetch_deep_content(source['url'], soup)
+                        context_content += deep_text
+
                     updates.append({
                         "source": source['name'],
                         "url": source['url'],
-                        "content": content
+                        "content": context_content
                     })
                     self.state[source['name']] = current_hash
                     state_changed = True
@@ -95,4 +133,5 @@ class Fetcher:
             self._save_state()
             
         return updates
+
 
