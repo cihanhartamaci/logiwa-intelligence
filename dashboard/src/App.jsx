@@ -39,6 +39,8 @@ function App() {
   const [frequency, setFrequency] = useState(localStorage.getItem('monitoring_frequency') || 'Daily');
   const [isPaused, setIsPaused] = useState(false);
   const [cycleStatus, setCycleStatus] = useState(null);
+  const [editingUrl, setEditingUrl] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', url: '', category: '' });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -151,6 +153,26 @@ function App() {
       } catch (error) {
         alert("Error adding source: " + error.message);
       }
+    }
+  };
+
+  const handleEditUrl = (item) => {
+    setEditingUrl(item.id);
+    setEditForm({ name: item.name, url: item.url, category: item.category || 'API Documentation' });
+  };
+
+  const handleUpdateUrl = async (e) => {
+    e.preventDefault();
+    try {
+      await updateDoc(doc(db, "monitored_urls", editingUrl), {
+        name: editForm.name,
+        url: editForm.url,
+        category: editForm.category
+      });
+      setEditingUrl(null);
+    } catch (e) {
+      console.error("Error updating document: ", e);
+      alert("Error updating URL. Check console.");
     }
   };
 
@@ -493,7 +515,22 @@ function App() {
                   <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.url}</td>
                   <td><span className="badge badge-green">Monitoring</span></td>
                   <td>
-                    <button className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-red)' }} onClick={() => handleDeleteUrl(s.id)}>Remove</button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        className="btn"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-cyan)' }}
+                        onClick={() => handleEditUrl(s)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-red)' }}
+                        onClick={() => handleDeleteUrl(s.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -511,6 +548,51 @@ function App() {
           </table>
         </div>
       </section>
+
+      {/* Edit URL Modal */}
+      {editingUrl && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ marginBottom: '1.5rem' }}>Edit Source</h2>
+            <form onSubmit={handleUpdateUrl}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Source Name</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>URL</label>
+                <input
+                  type="url"
+                  className="input-field"
+                  value={editForm.url}
+                  onChange={e => setEditForm({ ...editForm, url: e.target.value })}
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Category</label>
+                <select
+                  className="input-field"
+                  value={editForm.category}
+                  onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                >
+                  {categories.map(cat => <option key={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn" style={{ color: '#aaa' }} onClick={() => setEditingUrl(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Update Source</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 
