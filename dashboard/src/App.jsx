@@ -150,7 +150,7 @@ function App() {
     status: url.last_status || 'Ready',
     impact: url.last_impact || 'No Changes',
     action: url.next_action || 'Monitoring',
-    last_date: url.last_date || 'N/A'
+    last_date: url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis'
   }));
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
@@ -445,16 +445,29 @@ function App() {
           <tbody>
             {readinessData.map((row, i) => (
               <tr key={i}>
-                <td style={{ fontWeight: '500' }}>{row.integration}</td>
-                <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{row.last_date}</td>
-                <td>
+                <td style={{ fontWeight: '500', verticalAlign: 'top', paddingTop: '1.5rem' }}>{row.integration}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', verticalAlign: 'top', paddingTop: '1.5rem' }}>{row.last_date}</td>
+                <td style={{ verticalAlign: 'top', paddingTop: '1.5rem' }}>
                   <span className={`status-dot ${row.status === 'Ready' ? 'status-ready' :
                     row.status === 'Action Required' ? 'status-action' : 'status-review'
                     }`}></span>
                   {row.status}
                 </td>
-                <td>{row.impact}</td>
-                <td style={{ color: 'var(--text-secondary)' }}>{row.action}</td>
+                <td style={{ verticalAlign: 'top', paddingTop: '1.5rem' }}>{row.impact}</td>
+                <td style={{ verticalAlign: 'top', paddingTop: '1.25rem' }}>
+                  <div style={{
+                    padding: '8px 12px',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: '1.5',
+                    maxWidth: '450px'
+                  }}>
+                    {row.action}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -901,17 +914,9 @@ function App() {
                         </div>
                       </div>
 
-                      <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: '12px', overflow: 'hidden' }}>
-                        <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
-                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
-                          <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
-                        </div>
-                        <div style={{ padding: '20px', background: '#f8fafc', borderLeft: '4px solid #10b981' }}>
-                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', color: '#059669' }}>✅ Recommended Action</p>
-                          <p style={{ fontWeight: '600', fontSize: '13px', color: '#064e3b', lineHeight: '1.5', margin: 0 }}>
-                            {item.actionRequired}
-                          </p>
-                        </div>
+                      <div style={{ padding: '20px' }}>
+                        <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
+                        <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
                       </div>
                     </div>
                   ))}
