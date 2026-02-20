@@ -30,13 +30,22 @@ class LLMAnalyzer:
             self.client = None
         
     def analyze(self, content):
+        import datetime
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        
         prompt = f"""
         You are an Integration Architect for Logiwa WMS. Analyze the following update text for deep technical impact.
+        
+        TODAY'S DATE: {today}
         
         TEXT:
         {content[:6000]} # Increased context limit
         
         Your analysis must be detailed and professional.
+        
+        DATE FILTERING RULE:
+        - If the technical update, release note, or fix is dated MORE THAN 1 MONTH AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false.
+        - We only ignore older stuff. We want fresh intelligence from the last 30 days.
         
         Task:
         1. 'summary': 1-2 sentence overview.
@@ -45,7 +54,7 @@ class LLMAnalyzer:
         4. 'action_required': Specific technical steps the engineering team must take (e.g. "Migrate to OAuth 2.0", "Update payload schema").
         5. 'impact_level': High (Breaking), Medium (New Risk/Capability), Low (Info).
         6. 'type': Breaking Change, New Capability, Maintenance, Info.
-        7. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce?
+        7. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last 1 month?
         
         Output JSON format:
         {{
