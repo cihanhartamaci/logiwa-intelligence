@@ -88,6 +88,31 @@ function App() {
     }
   };
 
+  const seedIndustrySources = async () => {
+    const defaults = [
+      { name: 'NetSuite Release Notes', url: 'https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html', category: 'ERPs' },
+      { name: 'Shopify Changelog', url: 'https://shopify.dev/changelog', category: 'Marketplaces' },
+      { name: 'Shippo Changelog', url: 'https://goshippo.com/docs/changelog/', category: 'Carriers' },
+      { name: 'FedEx Announcements', url: 'https://developer.fedex.com/api/en-us/announcements.html', category: 'Carriers' },
+      { name: 'Amazon SP-API Blog', url: 'https://developer-docs.amazon.com/sp-api/blog', category: 'Marketplaces' },
+      { name: 'Walmart Developer News', url: 'https://developer.walmart.com/news', category: 'Marketplaces' },
+      { name: 'TikTok Shop News', url: 'https://developers.tiktok-shops.com/documents/news', category: 'Marketplaces' },
+      { name: 'Etsy Developer News', url: 'https://www.etsy.com/developers/news', category: 'Marketplaces' },
+    ];
+
+    try {
+      const batch = [];
+      defaults.forEach((source) => {
+        batch.push(addDoc(collection(db, 'monitored_urls'), source));
+      });
+      await Promise.all(batch);
+      alert('Industry sources seeded successfully! They will appear in the list shortly.');
+    } catch (error) {
+      console.error('Error seeding sources:', error);
+      alert('Failed to seed sources. Ensure you have Firestore write permissions.');
+    }
+  };
+
   const handleLogout = () => {
     signOut(auth);
   };
@@ -266,8 +291,11 @@ function App() {
       </section>
 
       <section className="data-table-container">
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '1.125rem' }}>Active Monitoring Sources</h3>
+          <button className="btn" onClick={seedIndustrySources} style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', color: 'var(--accent-cyan)' }}>
+            Load Default Industry Sources
+          </button>
         </div>
         <div style={{ padding: '1rem' }}>
           <table>
