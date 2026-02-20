@@ -28,10 +28,14 @@ class Notifier:
             "attachments": [
                 {
                     "color": color,
-                    "pretext": f"🚨 *Integration Alert: {alert['source']}*",
-                    "title": alert['type'],
+                    "author_name": "Logiwa Integration Intelligence",
+                    "author_icon": "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png",
+                    "pretext": f"🚨 *New Integration Alert: {alert['source']}*",
+                    "title": alert[ 'type'],
                     "title_link": alert['url'],
-                    "text": f"*{alert['impact_level']} Impact*\n{alert['summary']}"
+                    "text": f"*{alert['impact_level']} Impact*\n{alert['summary']}",
+                    "footer": "Logiwa AI Monitor",
+                    "footer_icon": "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png"
                 }
             ]
         }
@@ -47,15 +51,29 @@ class Notifier:
             logger.warning("Email notification skipped (Disabled or missing credentials)")
             return
 
-        subject = f"📊 Weekly Integration Intelligence Report ({len(alerts)} items)"
+        subject = f"📊 Logiwa Integration Intelligence Report ({len(alerts)} items)"
         
-        body = "<h1>Weekly Integration Updates</h1><ul>"
+        logo_url = "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png"
+        body = f"""
+        <div style='font-family: sans-serif; max-width: 600px;'>
+            <img src='{logo_url}' alt='Logiwa' style='height: 40px; margin-bottom: 20px;' />
+            <h1>Intelligence Discovery Summary</h1>
+            <p>The following changes were detected in monitored integration endpoints:</p>
+            <ul>
+        """
         for alert in alerts:
             icon = "🔴" if alert['impact_level'] == 'High' else "🟡"
-            body += f"<li>{icon} <b>{alert['source']}</b>: {alert['summary']} (<a href='{alert['url']}'>Link</a>)</li>"
-        body += "</ul>"
+            body += f"<li style='margin-bottom: 10px;'>{icon} <b>{alert['source']}</b>: {alert['summary']} (<a href='{alert['url']}'>View Source</a>)</li>"
+        
+        body += """
+            </ul>
+            <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;' />
+            <p style='font-size: 12px; color: #666;'>Logiwa Integration Intelligence Agent v1.1</p>
+        </div>
+        """
 
         self._send_email(subject, body, self.recipients)
+
 
     def send_internal_report_email(self, html_content):
          if not self.config['email']['enabled']:
