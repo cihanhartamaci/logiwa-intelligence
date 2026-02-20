@@ -5,7 +5,11 @@ on:
     - cron: '0 0 * * *' # Daily at midnight UTC
   workflow_dispatch: # Allows manual trigger
 
+permissions:
+  contents: write
+
 jobs:
+
   monitor:
     runs-on: ubuntu-latest
     steps:
