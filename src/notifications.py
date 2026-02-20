@@ -41,8 +41,11 @@ class Notifier:
         }
         
         try:
-            requests.post(self.slack_webhook, json=payload)
-            logger.info(f"Sent Slack alert for {alert['source']}")
+            response = requests.post(self.slack_webhook, json=payload, timeout=10)
+            if response.status_code == 200 and response.text == "ok":
+                logger.info(f"Sent Slack alert for {alert['source']}")
+            else:
+                logger.error(f"Slack rejected the message for {alert['source']}. Status: {response.status_code}, Response: {response.text}")
         except Exception as e:
             logger.error(f"Failed to send Slack alert: {e}")
 
