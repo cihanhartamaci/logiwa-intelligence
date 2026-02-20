@@ -41,6 +41,7 @@ function App() {
   const [cycleStatus, setCycleStatus] = useState(null);
   const [editingUrl, setEditingUrl] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', url: '', category: '' });
+  const [syncStatus, setSyncStatus] = useState('Initializing...');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -81,6 +82,7 @@ function App() {
     });
 
     // Sync System Config (Pause/Frequency/GitHub)
+    setSyncStatus('Connecting...');
     const unsubConfig = onSnapshot(doc(db, "config", "system"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -88,7 +90,13 @@ function App() {
         if (data.frequency) setFrequency(data.frequency);
         if (data.gh_pat) setGithubPat(data.gh_pat);
         if (data.gh_repo) setGithubRepo(data.gh_repo);
+        setSyncStatus('Synced');
+      } else {
+        setSyncStatus('No remote config found');
       }
+    }, (error) => {
+      console.error("Firestore Sync Error:", error);
+      setSyncStatus(`Sync Error: ${error.code}`);
     });
 
     return () => {
@@ -743,7 +751,12 @@ function App() {
       {showSettings && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2 style={{ marginBottom: '1.5rem' }}>Dashboard Settings</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>Dashboard Settings</h2>
+              <span style={{ fontSize: '0.7rem', color: syncStatus === 'Synced' ? 'var(--accent-emerald)' : 'var(--accent-yellow)' }}>
+                ● {syncStatus}
+              </span>
+            </div>
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Personal Access Token (PAT)</label>
               <input
