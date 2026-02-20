@@ -43,13 +43,17 @@ def job():
 
     frequency = sys_config.get('frequency', 'Daily')
     last_run = sys_config.get('last_run')
-    freshness = sys_config.get('intelligence_freshness', '1 Month')
-    
     # Manual run bypass (triggered via Dashboard)
     event_name = os.getenv("GITHUB_EVENT_NAME", "local")
     is_manual = event_name == "workflow_dispatch"
     
-    logger.info(f"Event detected: {event_name}. Frequency: {frequency}. Manual Bypass: {is_manual}")
+    # Select freshness based on run type
+    if is_manual:
+        freshness = sys_config.get('manual_intelligence_freshness', '3 Months')
+    else:
+        freshness = sys_config.get('intelligence_freshness', '1 Month')
+    
+    logger.info(f"Event detected: {event_name}. Frequency: {frequency}. Manual Bypass: {is_manual}. Freshness: {freshness}")
     
     if last_run and frequency != 'Manual' and not is_manual:
         from datetime import datetime, timezone

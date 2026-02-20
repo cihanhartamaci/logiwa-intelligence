@@ -42,6 +42,7 @@ function App() {
   const [editingUrl, setEditingUrl] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', url: '', category: '' });
   const [intelligenceFreshness, setIntelligenceFreshness] = useState('1 Month');
+  const [manualIntelligenceFreshness, setManualIntelligenceFreshness] = useState('3 Months');
   const [syncStatus, setSyncStatus] = useState('Initializing...');
 
   useEffect(() => {
@@ -92,6 +93,7 @@ function App() {
         if (data.gh_pat) setGithubPat(data.gh_pat);
         if (data.gh_repo) setGithubRepo(data.gh_repo);
         if (data.intelligence_freshness) setIntelligenceFreshness(data.intelligence_freshness);
+        if (data.manual_intelligence_freshness) setManualIntelligenceFreshness(data.manual_intelligence_freshness);
         setSyncStatus('Synced');
       } else {
         setSyncStatus('No remote config found');
@@ -281,7 +283,8 @@ function App() {
         frequency,
         gh_pat: githubPat,
         gh_repo: githubRepo,
-        intelligence_freshness: intelligenceFreshness
+        intelligence_freshness: intelligenceFreshness,
+        manual_intelligence_freshness: manualIntelligenceFreshness
       }, { merge: true });
       setShowSettings(false);
       alert("Settings saved and synced globally!");
@@ -814,7 +817,7 @@ function App() {
               </select>
             </div>
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Intelligence Freshness</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Scheduled Freshness (Automated)</label>
               <select className="input-field" value={intelligenceFreshness} onChange={e => setIntelligenceFreshness(e.target.value)}>
                 <option>1 Week</option>
                 <option>1 Month</option>
@@ -822,8 +825,18 @@ function App() {
                 <option>6 Months</option>
                 <option>1 Year</option>
               </select>
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Manual Run Freshness (Dashboard Trigger)</label>
+              <select className="input-field" value={manualIntelligenceFreshness} onChange={e => setManualIntelligenceFreshness(e.target.value)}>
+                <option>1 Week</option>
+                <option>1 Month</option>
+                <option>3 Months</option>
+                <option>6 Months</option>
+                <option>1 Year</option>
+              </select>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                💡 Ignore updates older than this period.
+                💡 Define different lookback periods for scheduled vs manual runs.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
