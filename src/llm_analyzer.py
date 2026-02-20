@@ -24,7 +24,10 @@ class LLMAnalyzer:
                 genai.configure(api_key=api_key)
                 self.client = genai
             else:
-                 logger.error("No Google API Key found.")
+                logger.error("No Google API Key found.")
+                self.client = None
+        else:
+            self.client = None
         
     def analyze(self, content):
         prompt = f"""
@@ -52,8 +55,6 @@ class LLMAnalyzer:
             if not self.client:
                 return {"summary": "No LLM Client", "impact_level": "Low", "type": "Error", "is_relevant": False}
 
-            if not self.client:
-                return {"summary": "No LLM Client", "impact_level": "Low", "type": "Error", "is_relevant": False}
 
             response_text = ""
             # Fallback strategy: Rotate through models if one hits a rate limit
