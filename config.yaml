@@ -23,25 +23,30 @@ notifications:
 
 # Monitored Sources
 sources:
-  - name: "NetSuite Help Center"
-    url: "https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/"
-    type: "html"
-    selector: null # Fetch full page to avoid selector misses
-    
-  - name: "FedEx API Announcements"
-    url: "https://developer.fedex.com/api/en-us/announcements.html"
-    type: "html"
-    selector: null
-
-  - name: "Amazon SP-API Blog"
-    url: "https://developer-docs.amazon.com/sp-api/docs/blog"
-    type: "html"
-    selector: null
-
+  - name: "NetSuite Release Notes"
+    url: "https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html"
+    category: "ERPs"
   - name: "Shopify Changelog"
-    url: "https://changelog.shopify.com"
-    type: "html"
-    selector: null
+    url: "https://shopify.dev/changelog"
+    category: "Marketplaces"
+  - name: "Shippo Changelog"
+    url: "https://goshippo.com/docs/changelog/"
+    category: "Carriers"
+  - name: "FedEx Announcements"
+    url: "https://developer.fedex.com/api/en-us/announcements.html"
+    category: "Carriers"
+  - name: "Amazon SP-API Blog"
+    url: "https://developer-docs.amazon.com/sp-api/blog"
+    category: "Marketplaces"
+  - name: "Walmart Developer News"
+    url: "https://developer.walmart.com/news"
+    category: "Marketplaces"
+  - name: "TikTok Shop News"
+    url: "https://developers.tiktok-shops.com/documents/news"
+    category: "Marketplaces"
+  - name: "Etsy Developer News"
+    url: "https://www.etsy.com/developers/news"
+    category: "Marketplaces"
 
 # Internal Reporter Configuration
 reporter:

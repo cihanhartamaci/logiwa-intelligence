@@ -23,7 +23,16 @@ function App() {
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
   const [newUrl, setNewUrl] = useState({ name: '', url: '', category: 'ERPs' });
-  const [monitoredUrls, setMonitoredUrls] = useState([]);
+  const [monitoredUrls, setMonitoredUrls] = useState([
+    { name: 'NetSuite Release Notes', url: 'https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html', category: 'ERPs' },
+    { name: 'Shopify Changelog', url: 'https://shopify.dev/changelog', category: 'Marketplaces' },
+    { name: 'Shippo Changelog', url: 'https://goshippo.com/docs/changelog/', category: 'Carriers' },
+    { name: 'FedEx Announcements', url: 'https://developer.fedex.com/api/en-us/announcements.html', category: 'Carriers' },
+    { name: 'Amazon SP-API Blog', url: 'https://developer-docs.amazon.com/sp-api/blog', category: 'Marketplaces' },
+    { name: 'Walmart Developer News', url: 'https://developer.walmart.com/news', category: 'Marketplaces' },
+    { name: 'TikTok Shop News', url: 'https://developers.tiktok-shops.com/documents/news', category: 'Marketplaces' },
+    { name: 'Etsy Developer News', url: 'https://www.etsy.com/developers/news', category: 'Marketplaces' },
+  ]);
   const [showSettings, setShowSettings] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
