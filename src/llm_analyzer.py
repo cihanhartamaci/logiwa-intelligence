@@ -29,7 +29,7 @@ class LLMAnalyzer:
         else:
             self.client = None
         
-    def analyze(self, content):
+    def analyze(self, content, freshness=30):
         import datetime
         today = datetime.datetime.now().strftime("%Y-%m-%d")
         
@@ -44,8 +44,8 @@ class LLMAnalyzer:
         Your analysis must be detailed and professional.
         
         DATE FILTERING RULE:
-        - If the technical update, release note, or fix is dated MORE THAN 1 MONTH AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false.
-        - We only ignore older stuff. We want fresh intelligence from the last 30 days.
+        - If the technical update, release note, or fix is dated MORE THAN {freshness} AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false.
+        - We only ignore older stuff. We want fresh intelligence from the defined freshness period ({freshness}).
         
         Task:
         1. 'summary': 1-2 sentence overview.
@@ -55,7 +55,7 @@ class LLMAnalyzer:
         5. 'impact_level': High (Breaking), Medium (New Risk/Capability), Low (Info).
         6. 'type': Breaking Change, New Capability, Maintenance, Info.
         7. 'release_date': The date of the update/release (e.g. "2026-02-20"). If not found, use N/A.
-        8. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last 1 month?
+        8. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last {freshness}?
         
         Output JSON format:
         {{

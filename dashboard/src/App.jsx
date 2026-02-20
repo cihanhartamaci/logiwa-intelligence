@@ -41,6 +41,7 @@ function App() {
   const [cycleStatus, setCycleStatus] = useState(null);
   const [editingUrl, setEditingUrl] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', url: '', category: '' });
+  const [intelligenceFreshness, setIntelligenceFreshness] = useState('1 Month');
   const [syncStatus, setSyncStatus] = useState('Initializing...');
 
   useEffect(() => {
@@ -90,6 +91,7 @@ function App() {
         if (data.frequency) setFrequency(data.frequency);
         if (data.gh_pat) setGithubPat(data.gh_pat);
         if (data.gh_repo) setGithubRepo(data.gh_repo);
+        if (data.intelligence_freshness) setIntelligenceFreshness(data.intelligence_freshness);
         setSyncStatus('Synced');
       } else {
         setSyncStatus('No remote config found');
@@ -278,7 +280,8 @@ function App() {
       await setDoc(doc(db, "config", "system"), {
         frequency,
         gh_pat: githubPat,
-        gh_repo: githubRepo
+        gh_repo: githubRepo,
+        intelligence_freshness: intelligenceFreshness
       }, { merge: true });
       setShowSettings(false);
       alert("Settings saved and synced globally!");
@@ -809,6 +812,19 @@ function App() {
                 <option>Weekly</option>
                 <option>Monthly</option>
               </select>
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Intelligence Freshness</label>
+              <select className="input-field" value={intelligenceFreshness} onChange={e => setIntelligenceFreshness(e.target.value)}>
+                <option>1 Week</option>
+                <option>1 Month</option>
+                <option>3 Months</option>
+                <option>6 Months</option>
+                <option>1 Year</option>
+              </select>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                💡 Ignore updates older than this period.
+              </p>
             </div>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
               <button className="btn" onClick={() => setShowSettings(false)}>Cancel</button>

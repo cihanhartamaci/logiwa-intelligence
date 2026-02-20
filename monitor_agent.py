@@ -43,6 +43,7 @@ def job():
 
     frequency = sys_config.get('frequency', 'Daily')
     last_run = sys_config.get('last_run')
+    freshness = sys_config.get('intelligence_freshness', '1 Month')
     
     # Manual run bypass (triggered via Dashboard)
     event_name = os.getenv("GITHUB_EVENT_NAME", "local")
