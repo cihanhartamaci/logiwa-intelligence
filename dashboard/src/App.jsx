@@ -242,12 +242,12 @@ function App() {
     const LOGO_MAP = {
       'Shopify': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopify_logo_2018.svg/512px-Shopify_logo_2018.svg.png',
       'NetSuite': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Oracle_NetSuite_logo.svg/512px-Oracle_NetSuite_logo.svg.png',
-      'FedEx': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/FedEx_Express_logo.svg/512px-FedEx_Express_logo.svg.png',
+      'FedEx': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRccXb1NQDWasHL7N6Ibb3sYUs4vRYu0JIvvA&s',
       'Amazon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/512px-Amazon_logo.svg.png',
-      'Walmart': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Walmart_logo.svg/512px-Walmart_logo.svg.png',
+      'Walmart': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Walmart_logo_%282008%29.svg',
       'TikTok': 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/TikTok_logo.svg/512px-TikTok_logo.svg.png',
       'Etsy': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Etsy_logo.svg/512px-Etsy_logo.svg.png',
-      'Shippo': 'https://upload.wikimedia.org/wikipedia/commons/3/30/Shippo_Logo.png'
+      'Shippo': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRm1OBTShEIiV0VfOHKJB-NnKtb48RU-X98Dg&s'
     };
     const searchName = name.toLowerCase();
     for (const key in LOGO_MAP) {
@@ -738,7 +738,7 @@ function App() {
                               borderRadius: '4px',
                               fontSize: '11px',
                               fontWeight: '800',
-                              background: item.impact === 'High' ? '#ef4444' : item.impact === 'Medium' ? '#f59e0b' : '#10b981',
+                              background: item.impact.startsWith('High') ? '#ef4444' : item.impact.startsWith('Medium') ? '#f59e0b' : '#10b981',
                               color: '#fff',
                             }}>
                               {item.impact.toUpperCase()} IMPACT
@@ -775,7 +775,8 @@ function App() {
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       <aside className="sidebar">
         <div className="logo">
@@ -836,7 +837,7 @@ function App() {
 
         {renderContent()}
       </main>
-    </div>
+    </div >
   );
 }
 

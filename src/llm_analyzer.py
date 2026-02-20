@@ -53,7 +53,7 @@ class LLMAnalyzer:
             "details": ["...", "..."],
             "logiwa_impact": "...",
             "action_required": "...",
-            "impact_level": "High/Medium/Low",
+            "impact_level": "High/Medium/Low", // MUST be exactly one of these three strings
             "type": "...",
             "is_relevant": true
         }}

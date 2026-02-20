@@ -102,8 +102,12 @@ def job():
             report_content += "---\n\n"
 
             # 4. Immediate Alerting (if High or Medium Impact)
-            if analysis['impact_level'] in ['High', 'Medium']:
+            impact_check = str(analysis.get('impact_level', '')).lower()
+            if 'high' in impact_check or 'medium' in impact_check:
+                logger.info(f"High/Medium impact detected ({analysis['impact_level']}). Sending Slack alert...")
                 notifier.send_slack_alert(alert)
+            else:
+                logger.info(f"Impact level '{analysis['impact_level']}' below threshold. Skipping Slack alert.")
 
         logger.info("Sleeping 10s to respect Rate Limits...")
         time.sleep(10)
