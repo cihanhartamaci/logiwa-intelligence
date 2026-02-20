@@ -1,0 +1,5 @@
+- Finished the NetSuite OAuth 2.0 implementation. It was tricky but works now.
+- Started looking into FedEx REST API migration. The documentation is a bit confusing on rate limiting.
+- Found a bug in the Shopify connector where order sync fails if phone number is missing. Temporary fix applied.
+- Need to talk to Product team about the new Amazon SP-API pricing, might need budget approval.
+- Next week planning to fully focus on FedEx load testing.

@@ -1,0 +1,48 @@
+# General Configuration
+app_name: "Logiwa Integration Intelligence"
+log_level: "INFO"
+
+# LLM Configuration (Choose 'openai' or 'gemini')
+llm_provider: "gemini"
+llm_model: "gemini-flash-latest"
+
+# Notification Configuration
+notifications:
+  slack:
+    enabled: true
+    webhook_url_env: "SLACK_WEBHOOK_URL" # Set this in .env
+  email:
+    enabled: true
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    sender_email_env: "SMTP_EMAIL" # Set this in .env
+    sender_password_env: "SMTP_PASSWORD" # Set this in .env
+    recipients:
+      - "integration-team@logiwa.com"
+      - "cihan.hartamaci@logiwa.com"
+
+# Monitored Sources
+sources:
+  - name: "NetSuite Help Center"
+    url: "https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/"
+    type: "html"
+    selector: null # Fetch full page to avoid selector misses
+    
+  - name: "FedEx API Announcements"
+    url: "https://developer.fedex.com/api/en-us/announcements.html"
+    type: "html"
+    selector: null
+
+  - name: "Amazon SP-API Blog"
+    url: "https://developer-docs.amazon.com/sp-api/docs/blog"
+    type: "html"
+    selector: null
+
+  - name: "Shopify Changelog"
+    url: "https://changelog.shopify.com"
+    type: "html"
+    selector: null
+
+# Internal Reporter Configuration
+reporter:
+  output_dir: "reports"
