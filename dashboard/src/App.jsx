@@ -330,7 +330,7 @@ function App() {
         x: 0,
         y: 0,
         width: pdfWidth,
-        windowWidth: 1200, // Increased for better proportions (makes text look smaller)
+        windowWidth: 800, // 800px is perfect for A4 @ 96DPI
         autoPaging: 'text',
         margin: [10, 10, 10, 10], // standard margins
         html2canvas: {
@@ -723,14 +723,14 @@ function App() {
             {/* PDF Viewport (A4 Ratio) */}
             <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}>
               <div id="report-pdf-template" style={{
-                width: '100%',
-                maxWidth: '210mm',
+                width: '800px', // Fixed width for consistent PDF conversion
                 background: '#fff',
-                padding: '50px',
+                padding: '40px',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
                 fontFamily: '"Inter", "Segoe UI", sans-serif',
                 position: 'relative',
-                color: '#1a1a1a'
+                color: '#1a1a1a',
+                boxSizing: 'border-box'
               }}>
                 {/* Decorative Watermark */}
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', opacity: 0.03, fontSize: '120px', fontWeight: '900', zIndex: 0, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
@@ -740,8 +740,8 @@ function App() {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '4px solid #3b82f6', paddingBottom: '30px', marginBottom: '40px', position: 'relative', zIndex: 1 }}>
                   <div>
-                    <h1 style={{ fontSize: '26px', margin: 0, fontWeight: '800', letterSpacing: '-1px', color: '#111' }}>INTELLIGENCE DISCOVERY</h1>
-                    <p style={{ color: '#3b82f6', marginTop: '8px', fontSize: '15px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <h1 style={{ fontSize: '22px', margin: 0, fontWeight: '800', letterSpacing: '-0.5px', color: '#111' }}>INTELLIGENCE DISCOVERY</h1>
+                    <p style={{ color: '#3b82f6', marginTop: '4px', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       Integration Audit | {new Date(selectedReport.timestamp?.seconds * 1000).toLocaleDateString()}
                     </p>
                   </div>
@@ -780,7 +780,7 @@ function App() {
                           )}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <h2 style={{ fontSize: '18px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                          <h2 style={{ fontSize: '16px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
                           <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                             <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
                             <span style={{
@@ -799,12 +799,12 @@ function App() {
 
                       <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: '12px', overflow: 'hidden' }}>
                         <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
-                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '13px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
-                          <p style={{ fontSize: '15px', lineHeight: '1.6', color: '#334155' }}>{item.summary}</p>
+                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
+                          <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
                         </div>
                         <div style={{ padding: '20px', background: '#f1f5f9' }}>
-                          <p style={{ fontWeight: '800', marginBottom: '10px', fontSize: '13px', textTransform: 'uppercase', color: '#64748b' }}>Operational Mandate</p>
-                          <p style={{ fontWeight: '600', fontSize: '15px', color: '#0f172a', lineHeight: '1.5' }}>
+                          <p style={{ fontWeight: '800', marginBottom: '10px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Operational Mandate</p>
+                          <p style={{ fontWeight: '600', fontSize: '13px', color: '#0f172a', lineHeight: '1.4' }}>
                             {item.action_required}
                           </p>
                         </div>
