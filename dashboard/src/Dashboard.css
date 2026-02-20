@@ -71,7 +71,8 @@ body {
   transition: all 0.2s ease;
 }
 
-.nav-link:hover, .nav-link.active {
+.nav-link:hover,
+.nav-link.active {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
 }
@@ -168,9 +169,20 @@ body {
   font-weight: 600;
 }
 
-.badge-red { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
-.badge-yellow { background: rgba(245, 158, 11, 0.1); color: var(--accent-yellow); }
-.badge-green { background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); }
+.badge-red {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-red);
+}
+
+.badge-yellow {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-yellow);
+}
+
+.badge-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-emerald);
+}
 
 .card-body h2 {
   font-size: 1.5rem;
@@ -224,6 +236,71 @@ tr:last-child td {
   margin-right: 0.5rem;
 }
 
-.status-ready { background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald); }
-.status-action { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
-.status-review { background: var(--accent-yellow); box-shadow: 0 0 8px var(--accent-yellow); }
+/* Forms & Inputs */
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+  background: #1c2128;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.status-ready {
+  background: var(--accent-emerald);
+  box-shadow: 0 0 8px var(--accent-emerald);
+}
+
+.status-action {
+  background: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red);
+}
+
+.status-review {
+  background: var(--accent-yellow);
+  box-shadow: 0 0 8px var(--accent-yellow);
+}

@@ -3,6 +3,16 @@ import './Dashboard.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Overview');
+  const [monitoredUrls, setMonitoredUrls] = useState([
+    { name: 'NetSuite Release Notes', url: 'https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html' },
+    { name: 'FedEx API Announcements', url: 'https://developer.fedex.com/api/en-us/announcements.html' },
+    { name: 'Amazon SP-API Blog', url: 'https://developer-docs.amazon.com/sp-api/blog' },
+    { name: 'Shopify Changelog', url: 'https://shopify.dev/changelog' },
+  ]);
+  const [newUrl, setNewUrl] = useState({ name: '', url: '' });
+  const [showSettings, setShowSettings] = useState(false);
+  const [githubPat, setGithubPat] = useState(localStorage.getItem('gh_pat') || '');
+  const [frequency, setFrequency] = useState('Daily');
 
   const readinessData = [
     { integration: 'FedEx (SOAP)', status: 'Action Required', impact: 'Breaking Change', action: 'Migrate to REST' },
@@ -11,6 +21,32 @@ function App() {
     { integration: 'Shopify', status: 'Needs Review', impact: 'Maintenance', action: 'Plan GraphQL Migration' },
     { integration: 'Walmart', status: 'Ready', impact: 'New Capability', action: 'Evaluate Inventory API' },
   ];
+
+  const handleAddUrl = (e) => {
+    e.preventDefault();
+    if (newUrl.name && newUrl.url) {
+      setMonitoredUrls([...monitoredUrls, newUrl]);
+      setNewUrl({ name: '', url: '' });
+      alert(`Source "${newUrl.name}" added locally. (API Integration pending)`);
+    }
+  };
+
+  const runCycle = async () => {
+    if (!githubPat) {
+      alert("Please set your GitHub Personal Access Token in Settings first!");
+      setShowSettings(true);
+      return;
+    }
+
+    alert("Triggering GitHub Action via API... (Demo Mode)");
+    // Real implementation would use fetch() to GitHub API
+  };
+
+  const saveSettings = () => {
+    localStorage.setItem('gh_pat', githubPat);
+    setShowSettings(false);
+    alert("Settings saved!");
+  };
 
   const renderOverview = () => (
     <>
@@ -39,7 +75,7 @@ function App() {
             <p>Last run: 14 mins ago</p>
           </div>
           <div className="card-footer">
-            <p>GitHub Actions Status: \u2705 Success</p>
+            <p>GitHub Actions Status: ✅ Success</p>
           </div>
         </div>
 
@@ -93,18 +129,154 @@ function App() {
   );
 
   const renderMonitoredURLs = () => (
+    <>
+      <section className="data-table-container" style={{ marginBottom: '2rem' }}>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1.125rem' }}>Add New Source</h3>
+        </div>
+        <form onSubmit={handleAddUrl} style={{ padding: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Source Name (e.g. UPS API Blog)</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="Name"
+              value={newUrl.name}
+              onChange={e => setNewUrl({ ...newUrl, name: e.target.value })}
+            />
+          </div>
+          <div style={{ flex: 2 }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>URL</label>
+            <input
+              className="input-field"
+              type="url"
+              placeholder="https://..."
+              value={newUrl.url}
+              onChange={e => setNewUrl({ ...newUrl, url: e.target.value })}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary">Add Source</button>
+        </form>
+      </section>
+
+      <section className="data-table-container">
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1.125rem' }}>Active Monitoring Sources</h3>
+        </div>
+        <div style={{ padding: '1rem' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Source Name</th>
+                <th>Endpoint URL</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monitoredUrls.map((s, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: '500' }}>{s.name}</td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.url}</td>
+                  <td><span className="badge badge-green">Monitoring</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+
+  const renderTopics = () => (
+    <section className="grid">
+      <div className="card">
+        <div className="card-header"><span className="card-title">ERPs</span></div>
+        <div className="card-body">
+          <ul style={{ listStyle: 'none' }}>
+            <li style={{ marginBottom: '0.5rem' }}>✅ NetSuite (Active)</li>
+            <li style={{ marginBottom: '0.5rem' }}>✅ SAP Business One (Active)</li>
+            <li style={{ color: 'var(--text-secondary)' }}>⏳ Microsoft Dynamics (Planned)</li>
+          </ul>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><span className="card-title">CARRIERS</span></div>
+        <div className="card-body">
+          <ul style={{ listStyle: 'none' }}>
+            <li style={{ marginBottom: '0.5rem' }}>✅ FedEx (Active)</li>
+            <li style={{ marginBottom: '0.5rem' }}>✅ UPS (Active)</li>
+            <li style={{ marginBottom: '0.5rem' }}>✅ USPS (Active)</li>
+          </ul>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><span className="card-title">MARKETPLACES</span></div>
+        <div className="card-body">
+          <ul style={{ listStyle: 'none' }}>
+            <li style={{ marginBottom: '0.5rem' }}>✅ Amazon SP-API (Active)</li>
+            <li style={{ marginBottom: '0.5rem' }}>✅ Shopify (Active)</li>
+            <li style={{ marginBottom: '0.5rem' }}>✅ Walmart (Active)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderReports = () => (
     <section className="data-table-container">
       <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-        <h3 style={{ fontSize: '1.125rem' }}>Active Monitoring Sources</h3>
+        <h3 style={{ fontSize: '1.125rem' }}>Intelligence Reports Archive</h3>
       </div>
-      <div style={{ padding: '2rem', color: 'var(--text-secondary)' }}>
-        <p>Currently watching 12 documentation and release note endpoints.</p>
-        <ul style={{ marginTop: '1rem', listStyle: 'none' }}>
-          <li>\u2022 NetSuite Release Notes</li>
-          <li>\u2022 FedEx API Announcements</li>
-          <li>\u2022 Amazon SP-API Blog</li>
-          <li>\u2022 Shopify Changelog</li>
-        </ul>
+      <div style={{ padding: '1rem' }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Report Name</th>
+              <th>Date Generated</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Weekly Intel Report - Feb 20</td>
+              <td>2026-02-20</td>
+              <td><span className="badge badge-green">Sent</span></td>
+              <td><button className="btn">View PDF</button></td>
+            </tr>
+            <tr>
+              <td>Weekly Intel Report - Feb 13</td>
+              <td>2026-02-13</td>
+              <td><span className="badge badge-green">Sent</span></td>
+              <td><button className="btn">View PDF</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+
+  const renderWorkflows = () => (
+    <section className="grid">
+      <div className="card">
+        <div className="card-header"><span className="card-title">DAILY MONITOR</span></div>
+        <div className="card-body">
+          <p style={{ fontSize: '1.25rem' }}>Scheduled: 00:00 UTC</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Status: Enabled</p>
+        </div>
+        <div className="card-footer">
+          <button className="btn">Pause Workflow</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><span className="card-title">DASHBOARD DEPLOY</span></div>
+        <div className="card-body">
+          <p style={{ fontSize: '1.25rem' }}>Trigger: Push to main</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Status: Enabled</p>
+        </div>
+        <div className="card-footer">
+          <button className="btn">View Logs</button>
+        </div>
       </div>
     </section>
   );
@@ -115,6 +287,12 @@ function App() {
         return renderOverview();
       case 'Monitored URLs':
         return renderMonitoredURLs();
+      case 'Topics':
+        return renderTopics();
+      case 'Reports':
+        return renderReports();
+      case 'Workflows':
+        return renderWorkflows();
       default:
         return (
           <div style={{ padding: '2rem', color: 'var(--text-secondary)' }}>
@@ -126,9 +304,42 @@ function App() {
 
   return (
     <div className="dashboard-container">
+      {showSettings && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ marginBottom: '1.5rem' }}>Dashboard Settings</h2>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Personal Access Token</label>
+              <input
+                type="password"
+                className="input-field"
+                placeholder="ghp_xxxxxxxxxxxx"
+                value={githubPat}
+                onChange={e => setGithubPat(e.target.value)}
+              />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                Required to trigger manually workflows. Token is stored in browser localStorage.
+              </p>
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Monitoring Frequency</label>
+              <select className="input-field" value={frequency} onChange={e => setFrequency(e.target.value)}>
+                <option>Hourly</option>
+                <option>Daily</option>
+                <option>Weekly</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={() => setShowSettings(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={saveSettings}>Save Settings</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className="sidebar">
         <div className="logo">
-          <span>\u1F4E6</span>
+          <span>📦</span>
           <span>Logiwa Intelligence</span>
         </div>
         <ul className="nav-links">
@@ -159,8 +370,8 @@ function App() {
             <p>Intelligence summary for the Logiwa Integration Team.</p>
           </div>
           <div className="actions">
-            <button className="btn">Settings</button>
-            <button className="btn btn-primary">Run Intelligence Cycle</button>
+            <button className="btn" onClick={() => setShowSettings(true)}>Settings</button>
+            <button className="btn btn-primary" onClick={runCycle}>Run Intelligence Cycle</button>
           </div>
         </header>
 
@@ -169,6 +380,7 @@ function App() {
     </div>
   );
 }
+
 
 
 export default App;
