@@ -15,6 +15,8 @@ import {
   doc,
   deleteDoc
 } from "firebase/firestore";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -200,6 +202,84 @@ function App() {
   const openReport = (report) => {
     setSelectedReport(report);
     setShowPdfViewer(true);
+  };
+
+  const parseReportMarkdown = (markdown) => {
+    if (!markdown) return [];
+    try {
+      const sections = markdown.split('## ').slice(1);
+      return sections.map(section => {
+        const lines = section.split('\n');
+        const title = lines[0].trim();
+        const typeLine = lines.find(l => l.startsWith('**Type:**')) || '';
+        const type = typeLine.split('**Type:**')[1]?.split('|')[0]?.trim() || 'N/A';
+        const impact = typeLine.split('**Impact:**')[1]?.trim() || 'Low';
+
+        const summaryIndex = lines.findIndex(l => l.includes('### Summary'));
+        const detailsIndex = lines.findIndex(l => l.includes('### Technical Details'));
+        const logiwaImpactIndex = lines.findIndex(l => l.includes('### Logiwa Impact'));
+        const actionRequiredIndex = lines.findIndex(l => l.includes('### Action Required'));
+
+        return {
+          title,
+          type,
+          impact,
+          summary: lines.slice(summaryIndex + 1, detailsIndex).join('\n').trim(),
+          details: lines.slice(detailsIndex + 1, logiwaImpactIndex).join('\n').trim().split('\n')
+            .filter(l => l.trim().startsWith('- '))
+            .map(l => l.replace('- ', '').trim()),
+          logiwaImpact: lines.slice(logiwaImpactIndex + 1, actionRequiredIndex).join('\n').trim(),
+          actionRequired: lines.slice(actionRequiredIndex + 1).join('\n').split('---')[0].trim()
+        };
+      });
+    } catch (e) {
+      console.error("Failed to parse markdown", e);
+      return [];
+    }
+  };
+
+  const getLogo = (name) => {
+    const LOGO_MAP = {
+      'Shopify': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopify_logo_2018.svg/512px-Shopify_logo_2018.svg.png',
+      'NetSuite': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Oracle_NetSuite_logo.svg/512px-Oracle_NetSuite_logo.svg.png',
+      'FedEx': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/FedEx_Corporation_-_Logo.svg/512px-FedEx_Corporation_-_Logo.svg.png',
+      'Amazon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/512px-Amazon_logo.svg.png',
+      'Walmart': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Walmart_logo.svg/512px-Walmart_logo.svg.png',
+      'TikTok': 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/TikTok_logo.svg/512px-TikTok_logo.svg.png',
+      'Etsy': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Etsy_logo.svg/512px-Etsy_logo.svg.png',
+      'Shippo': 'https://goshippo.com/static/img/shippo-logo.png'
+    };
+    for (const key in LOGO_MAP) {
+      if (name.includes(key)) return LOGO_MAP[key];
+    }
+    return null;
+  };
+
+  const downloadPdf = async (report) => {
+    const element = document.getElementById('report-pdf-template');
+    if (!element) return;
+
+    try {
+      setCycleStatus('running');
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${report.name || 'Logiwa_Intel_Report'}.pdf`);
+      setCycleStatus('success');
+    } catch (e) {
+      console.error("PDF Export failed", e);
+      setCycleStatus('error');
+    }
+    setTimeout(() => setCycleStatus(null), 3000);
   };
 
   const renderOverview = () => (
@@ -561,18 +641,90 @@ function App() {
 
       {showPdfViewer && selectedReport && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '800px', width: '90%', maxHeight: '90vh', overflowY: 'auto', background: '#fff', color: '#333' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', borderBottom: '2px solid #eee', paddingBottom: '1rem' }}>
-              <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '30px' }} />
-              <button className="btn" style={{ color: '#666' }} onClick={() => setShowPdfViewer(false)}>Close Viewer</button>
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%', maxHeight: '95vh', overflowY: 'auto', background: '#f4f7f9', color: '#1a1a1a', padding: 0 }}>
+            {/* Action Bar */}
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', padding: '1rem 2rem', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '24px' }} />
+                <span style={{ fontWeight: '600', color: '#666' }}>Intelligence Report Preview</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" onClick={() => downloadPdf(selectedReport)} disabled={cycleStatus === 'running'}>
+                  {cycleStatus === 'running' ? 'Generating...' : 'Download Professional PDF'}
+                </button>
+                <button className="btn" style={{ color: '#666' }} onClick={() => setShowPdfViewer(false)}>Close</button>
+              </div>
             </div>
-            <div className="pdf-page">
-              <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '1rem', lineHeight: '1.6' }}>
-                {selectedReport.content}
-              </pre>
-            </div>
-            <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem', display: 'flex', justifyContent: 'center' }}>
-              <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+
+            {/* PDF Viewport (A4 Ratio) */}
+            <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}>
+              <div id="report-pdf-template" style={{
+                width: '210mm',
+                minHeight: '297mm',
+                background: '#fff',
+                padding: '40px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                fontFamily: '"Inter", "Segoe UI", sans-serif',
+                position: 'relative'
+              }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #000', paddingBottom: '20px', marginBottom: '30px' }}>
+                  <div>
+                    <h1 style={{ fontSize: '28px', margin: 0, fontWeight: '800', letterSpacing: '-1px' }}>INTELLIGENCE DISCOVERY</h1>
+                    <p style={{ color: '#666', marginTop: '5px', fontSize: '14px' }}>Logiwa WMS Integration Audit | {new Date(selectedReport.timestamp?.seconds * 1000).toLocaleDateString()}</p>
+                  </div>
+                  <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa" style={{ height: '40px' }} />
+                </div>
+
+                {/* Subheader Info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px', background: '#f9f9f9', padding: '20px', borderRadius: '8px' }}>
+                  <div>
+                    <p style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Report ID</p>
+                    <p style={{ fontWeight: '600' }}>#{selectedReport.id?.substring(0, 8).toUpperCase()}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Alert Count</p>
+                    <p style={{ fontWeight: '600' }}>{selectedReport.alert_count || 0} Critical/High Updates</p>
+                  </div>
+                </div>
+
+                {/* Content Sections */}
+                {parseReportMarkdown(selectedReport.content).map((item, idx) => (
+                  <div key={idx} style={{ marginBottom: '40px', pageBreakInside: 'avoid' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+                      {getLogo(item.title) && <img src={getLogo(item.title)} alt={item.title} style={{ height: '24px', maxWidth: '80px', objectFit: 'contain' }} />}
+                      <h2 style={{ fontSize: '20px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                      <span style={{
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        background: item.impact === 'High' ? '#fee2e2' : item.impact === 'Medium' ? '#fef3c7' : '#d1fae5',
+                        color: item.impact === 'High' ? '#ef4444' : item.impact === 'Medium' ? '#f59e0b' : '#10b981',
+                        marginLeft: 'auto'
+                      }}>
+                        {item.impact.toUpperCase()} IMPACT
+                      </span>
+                    </div>
+
+                    <div style={{ borderLeft: '4px solid #eee', paddingLeft: '20px' }}>
+                      <p style={{ fontWeight: '600', marginBottom: '10px', fontSize: '15px' }}>Summary</p>
+                      <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#444', marginBottom: '15px' }}>{item.summary}</p>
+
+                      <p style={{ fontWeight: '600', marginBottom: '10px', fontSize: '15px' }}>Recommended Engineering Action</p>
+                      <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', fontSize: '14px', border: '1px solid #e2e8f0', color: '#1e293b' }}>
+                        {item.action_required}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Footer */}
+                <div style={{ marginTop: '50px', borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center', fontSize: '12px', color: '#999' }}>
+                  This document is auto-generated by Logiwa Integration Intelligence Bot.
+                  Confidential and Proprietary to Logiwa WMS.
+                </div>
+              </div>
             </div>
           </div>
         </div>
