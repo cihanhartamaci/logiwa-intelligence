@@ -12,17 +12,32 @@ class FirebaseManager:
         self._initialize()
 
     def _initialize(self):
+        # Avoid re-initializing if already done
+        if firebase_admin._apps:
+            self.db = firestore.client()
+            return
         try:
-            # We look for GOOGLE_APPLICATION_CREDENTIALS path or a local serviceAccountKey.json
-            service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "serviceAccountKey.json")
-            
-            if os.path.exists(service_account_path):
-                cred = credentials.Certificate(service_account_path)
+            # 1. GitHub Actions: FIREBASE_SERVICE_ACCOUNT_JSON is a full JSON string
+            sa_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+            if sa_json:
+                import json
+                sa_dict = json.loads(sa_json)
+                cred = credentials.Certificate(sa_dict)
                 firebase_admin.initialize_app(cred)
                 self.db = firestore.client()
-                logger.info("Firebase initialized with Service Account JSON.")
-            else:
-                logger.warning(f"Firebase Service Account JSON not found at {service_account_path}. Firestore features will be disabled.")
+                logger.info("Firebase initialized from JSON env variable.")
+                return
+
+            # 2. Local dev: serviceAccountKey.json file
+            sa_path = "serviceAccountKey.json"
+            if os.path.exists(sa_path):
+                cred = credentials.Certificate(sa_path)
+                firebase_admin.initialize_app(cred)
+                self.db = firestore.client()
+                logger.info("Firebase initialized from serviceAccountKey.json file.")
+                return
+
+            logger.warning("No Firebase credentials found. Firestore features will be disabled.")
         except Exception as e:
             logger.error(f"Failed to initialize Firebase: {e}")
 

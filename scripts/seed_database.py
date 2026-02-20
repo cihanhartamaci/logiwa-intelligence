@@ -1,24 +1,22 @@
-import firebase_admin
-from firebase_admin import credentials, firestore
-import os
 import sys
+import os
+sys.stdout.reconfigure(encoding='utf-8')
 
-# Add current directory to path to import FirebaseManager
+# Add parent directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.firebase_manager import FirebaseManager
 
 def seed():
-    print("🚀 Initializing Logiwa Intelligence Database Seeding...")
-    
-    # Ensure service account key exists
+    print("Initializing Logiwa Intelligence Database Seeding...")
+
     if not os.path.exists("serviceAccountKey.json"):
-        print("❌ Error: serviceAccountKey.json not found in the root directory.")
+        print("ERROR: serviceAccountKey.json not found in the root directory.")
         print("Please follow the Firebase Setup Guide to create this file.")
         return
 
     firebase = FirebaseManager()
     if not firebase.db:
-        print("❌ Error: Could not initialize Firestore. Check your credentials.")
+        print("ERROR: Could not initialize Firestore. Check your credentials.")
         return
 
     defaults = [
@@ -32,22 +30,21 @@ def seed():
         { "name": "Etsy Developer News", "url": "https://www.etsy.com/developers/news", "category": "Marketplaces" }
     ]
 
-    print(f"📦 Found {len(defaults)} default sources to seed.")
-    
-    # Check existing URLs to avoid duplicates (optional but good)
+    print(f"Found {len(defaults)} default sources to seed.")
+
     existing_urls = firebase.get_monitored_urls()
     existing_names = [u['name'] for u in existing_urls]
 
     count = 0
     for source in defaults:
         if source['name'] not in existing_names:
-            print(f"➕ Adding: {source['name']}...")
+            print(f"Adding: {source['name']}...")
             firebase.db.collection("monitored_urls").add(source)
             count += 1
         else:
-            print(f"⏭️ Skipping (already exists): {source['name']}")
+            print(f"Skipping (already exists): {source['name']}")
 
-    print(f"✅ Seeding Complete. Added {count} new templates to your Firestore.")
+    print(f"Seeding Complete. Added {count} new sources to your Firestore.")
 
 if __name__ == "__main__":
     seed()
