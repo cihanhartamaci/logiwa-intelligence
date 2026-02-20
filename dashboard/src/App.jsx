@@ -50,7 +50,14 @@ function App() {
       snapshot.forEach((doc) => {
         urls.push({ id: doc.id, ...doc.data() });
       });
-      setMonitoredUrls(urls);
+
+      // Auto-seed if empty (onboarding)
+      if (urls.length === 0 && user) {
+        console.log("No sources found, auto-seeding industry defaults...");
+        seedIndustrySources();
+      } else {
+        setMonitoredUrls(urls);
+      }
     });
 
     // Sync Reports
