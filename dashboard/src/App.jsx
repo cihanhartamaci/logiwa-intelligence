@@ -34,9 +34,9 @@ function App() {
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [intelReports, setIntelReports] = useState([]);
-  const [githubPat, setGithubPat] = useState(localStorage.getItem('gh_pat') || '');
-  const [githubRepo, setGithubRepo] = useState(localStorage.getItem('gh_repo') || 'cihanhartamaci/logiwa-intelligence');
-  const [frequency, setFrequency] = useState(localStorage.getItem('monitoring_frequency') || 'Daily');
+  const [githubPat, setGithubPat] = useState('');
+  const [githubRepo, setGithubRepo] = useState('cihanhartamaci/logiwa-intelligence');
+  const [frequency, setFrequency] = useState('Daily');
   const [isPaused, setIsPaused] = useState(false);
   const [cycleStatus, setCycleStatus] = useState(null);
   const [editingUrl, setEditingUrl] = useState(null);
@@ -80,12 +80,14 @@ function App() {
       setIntelReports(reports);
     });
 
-    // Sync System Config (Pause/Frequency)
+    // Sync System Config (Pause/Frequency/GitHub)
     const unsubConfig = onSnapshot(doc(db, "config", "system"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data.is_paused !== undefined) setIsPaused(data.is_paused);
         if (data.frequency) setFrequency(data.frequency);
+        if (data.gh_pat) setGithubPat(data.gh_pat);
+        if (data.gh_repo) setGithubRepo(data.gh_repo);
       }
     });
 
@@ -262,19 +264,19 @@ function App() {
   };
 
   const saveSettings = async () => {
-    localStorage.setItem('gh_pat', githubPat);
-    localStorage.setItem('gh_repo', githubRepo);
-    localStorage.setItem('monitoring_frequency', frequency);
-
-    // Sync to Firestore for the bot agent
+    // Sync to Firestore for all users (Global Config)
     try {
-      await setDoc(doc(db, "config", "system"), { frequency }, { merge: true });
+      await setDoc(doc(db, "config", "system"), {
+        frequency,
+        gh_pat: githubPat,
+        gh_repo: githubRepo
+      }, { merge: true });
+      setShowSettings(false);
+      alert("Settings saved and synced globally!");
     } catch (e) {
-      console.error("Failed to sync frequency to Firestore", e);
+      console.error("Failed to sync settings to Firestore", e);
+      alert("Failed to save settings. Check permissions.");
     }
-
-    setShowSettings(false);
-    alert("Settings saved!");
   };
 
   const openReport = (report) => {
