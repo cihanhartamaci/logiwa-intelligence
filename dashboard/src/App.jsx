@@ -330,7 +330,7 @@ function App() {
         x: 0,
         y: 0,
         width: pdfWidth,
-        windowWidth: 800, // Fixed width for consistent rendering scale
+        windowWidth: 1200, // Increased for better proportions (makes text look smaller)
         autoPaging: 'text',
         margin: [10, 10, 10, 10], // standard margins
         html2canvas: {
@@ -740,7 +740,7 @@ function App() {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '4px solid #3b82f6', paddingBottom: '30px', marginBottom: '40px', position: 'relative', zIndex: 1 }}>
                   <div>
-                    <h1 style={{ fontSize: '32px', margin: 0, fontWeight: '800', letterSpacing: '-1.5px', color: '#111' }}>INTELLIGENCE DISCOVERY</h1>
+                    <h1 style={{ fontSize: '26px', margin: 0, fontWeight: '800', letterSpacing: '-1px', color: '#111' }}>INTELLIGENCE DISCOVERY</h1>
                     <p style={{ color: '#3b82f6', marginTop: '8px', fontSize: '15px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
                       Integration Audit | {new Date(selectedReport.timestamp?.seconds * 1000).toLocaleDateString()}
                     </p>
@@ -780,7 +780,7 @@ function App() {
                           )}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <h2 style={{ fontSize: '22px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                          <h2 style={{ fontSize: '18px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
                           <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                             <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
                             <span style={{
