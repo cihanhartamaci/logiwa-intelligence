@@ -19,5 +19,6 @@ dist-ssr/
 Thumbs.db
 
 # Project Stats
-data/state.json
+# data/state.json
 intelligence_bot.log
+
