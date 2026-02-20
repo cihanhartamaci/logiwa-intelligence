@@ -78,8 +78,7 @@ class LLMAnalyzer:
 
             response_text = ""
             # Fallback strategy: Rotate through models if one hits a rate limit
-            # Note: Quotas are often per-model, so switching helps.
-            gemini_fallbacks = [self.model, "pollinations"]
+            gemini_fallbacks = [self.model, "gemini-1.5-flash", "gemini-1.5-pro", "pollinations"]
             
             # If not using Gemini, just retry the same model
             if self.provider != 'gemini':
@@ -111,7 +110,11 @@ class LLMAnalyzer:
                         )
                         if resp.status_code == 200:
                             data = resp.json()
-                            response_text = data['choices'][0]['message']['content']
+                            if isinstance(data, dict) and 'choices' in data:
+                                response_text = data['choices'][0]['message']['content']
+                            else:
+                                # Sometimes pollinations returns direct text if the proxy is bypassed
+                                response_text = resp.text
                             break
                         else:
                             raise Exception(f"Pollinations Error: {resp.status_code} - {resp.text}")
@@ -157,13 +160,24 @@ class LLMAnalyzer:
                  }
 
             import json
-            cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
+            import re
+            
+            # Robust JSON extraction: find first '{' and last '}'
+            match = re.search(r'(\{.*\})', response_text, re.DOTALL)
+            if match:
+                cleaned_text = match.group(1).strip()
+            else:
+                cleaned_text = response_text.replace("```json", "").replace("```", "").replace("***", "").strip()
+
             if not cleaned_text.startswith("{"): 
-                 # Sometimes safety filters return empty or weird text
-                 logger.warning(f"Invalid JSON response: {cleaned_text}")
-                 return {"summary": "Invalid LLM Response", "impact_level": "Low", "type": "Error", "is_relevant": False}
+                 logger.warning(f"Invalid JSON response structure: {cleaned_text[:100]}...")
+                 return {"summary": "Invalid LLM Response Format", "impact_level": "Low", "type": "Error", "is_relevant": False}
                  
-            return json.loads(cleaned_text)
+            try:
+                return json.loads(cleaned_text)
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON Decode Error: {e}. Raw: {cleaned_text[:200]}")
+                return {"summary": "JSON Parsing Error", "impact_level": "Low", "type": "Error", "is_relevant": False}
             
         except Exception as e:
             logger.error(f"LLM Analysis failed: {e}")
