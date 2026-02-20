@@ -94,9 +94,10 @@ class Fetcher:
         return deep_text
 
 
-    def check_sources(self, sources_config):
+    def check_sources(self, sources_config, force=False):
         """
         Iterates through sources and returns those that have changed using hash comparison.
+        If force is True, hash comparison is bypassed.
         """
         updates = []
         state_changed = False
@@ -110,8 +111,11 @@ class Fetcher:
                 current_hash = self.get_content_hash(hash_text)
                 previous_hash = self.state.get(source['name'])
                 
-                if current_hash != previous_hash:
-                    logger.info(f"New content detected for: {source['name']}")
+                if force or current_hash != previous_hash:
+                    if force:
+                        logger.info(f"Force fetch active for: {source['name']}")
+                    else:
+                        logger.info(f"New content detected for: {source['name']}")
                     
                     # For new content, we perform a deep fetch to get better context
                     context_content = content

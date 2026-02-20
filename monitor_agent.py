@@ -86,7 +86,7 @@ def job():
         return
 
     # 2. Fetch Updates
-    updates = fetcher.check_sources(sources)
+    updates = fetcher.check_sources(sources, force=is_manual)
     
     if not updates:
         logger.info("No new content changes detected.")
