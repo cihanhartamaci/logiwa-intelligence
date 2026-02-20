@@ -54,7 +54,8 @@ class LLMAnalyzer:
         4. 'action_required': Specific technical steps the engineering team must take (e.g. "Migrate to OAuth 2.0", "Update payload schema").
         5. 'impact_level': High (Breaking), Medium (New Risk/Capability), Low (Info).
         6. 'type': Breaking Change, New Capability, Maintenance, Info.
-        7. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last 1 month?
+        7. 'release_date': The date of the update/release (e.g. "2026-02-20"). If not found, use N/A.
+        8. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last 1 month?
         
         Output JSON format:
         {{
@@ -62,8 +63,9 @@ class LLMAnalyzer:
             "details": ["...", "..."],
             "logiwa_impact": "...",
             "action_required": "...",
-            "impact_level": "High/Medium/Low", // MUST be exactly one of these three strings
+            "impact_level": "High/Medium/Low",
             "type": "...",
+            "release_date": "YYYY-MM-DD",
             "is_relevant": true
         }}
         """

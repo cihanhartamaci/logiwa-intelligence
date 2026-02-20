@@ -105,7 +105,8 @@ def job():
                 "logiwa_impact": analysis.get('logiwa_impact', 'N/A'),
                 "action_required": analysis.get('action_required', 'N/A'),
                 "impact_level": analysis['impact_level'],
-                "type": analysis['type']
+                "type": analysis['type'],
+                "release_date": analysis.get('release_date', 'N/A')
             }
             alerts.append(alert)
             
@@ -120,20 +121,21 @@ def job():
                 status_data = {
                     "last_status": status_map.get(analysis['impact_level'], "Ready"),
                     "last_impact": analysis['type'],
-                    "next_action": analysis.get('action_required', "Monitoring")
+                    "next_action": analysis.get('action_required', "Monitoring"),
+                    "last_date": analysis.get('release_date', 'N/A')
                 }
                 logger.info(f"Updating Firestore status for {update['source']}...")
                 firebase.update_url_status(source_id, status_data)
 
             # Format for the detailed report content
             report_content += f"## {update['source']}\n"
-            report_content += f"**Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n\n"
+            report_content += f"**Release Date:** {analysis.get('release_date', 'N/A')} | **Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n\n"
             report_content += f"### Summary\n{analysis['summary']}\n\n"
             report_content += "### Technical Details\n"
             for detail in analysis.get('details', []):
                 report_content += f"- {detail}\n"
             report_content += f"\n### Logiwa Impact\n{analysis.get('logiwa_impact')}\n\n"
-            report_content += f"### Action Required\n{analysis.get('action_required')}\n\n"
+            report_content += f"### ✅ Recommended Action\n> {analysis.get('action_required')}\n\n"
             report_content += "---\n\n"
 
             # 4. Immediate Alerting (if High or Medium Impact)

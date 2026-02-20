@@ -149,7 +149,8 @@ function App() {
     integration: url.name,
     status: url.last_status || 'Ready',
     impact: url.last_impact || 'No Changes',
-    action: url.next_action || 'Monitoring'
+    action: url.next_action || 'Monitoring',
+    last_date: url.last_date || 'N/A'
   }));
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
@@ -299,25 +300,27 @@ function App() {
       return sections.map(section => {
         const lines = section.split('\n');
         const title = lines[0].trim();
-        const typeLine = lines.find(l => l.startsWith('**Type:**')) || '';
-        const type = typeLine.split('**Type:**')[1]?.split('|')[0]?.trim() || 'N/A';
-        const impact = typeLine.split('**Impact:**')[1]?.trim() || 'Low';
+        const infoLine = lines.find(l => l.startsWith('**Release Date:**')) || '';
+        const releaseDate = infoLine.split('**Release Date:**')[1]?.split('|')[0]?.trim() || 'N/A';
+        const type = infoLine.split('**Type:**')[1]?.split('|')[0]?.trim() || 'N/A';
+        const impact = infoLine.split('**Impact:**')[1]?.trim() || 'Low';
 
         const summaryIndex = lines.findIndex(l => l.includes('### Summary'));
         const detailsIndex = lines.findIndex(l => l.includes('### Technical Details'));
         const logiwaImpactIndex = lines.findIndex(l => l.includes('### Logiwa Impact'));
-        const actionRequiredIndex = lines.findIndex(l => l.includes('### Action Required'));
+        const actionRequiredIndex = lines.findIndex(l => (l.includes('### Action Required') || l.includes('### ✅ Recommended Action')));
 
         return {
           title,
           type,
           impact,
+          releaseDate,
           summary: lines.slice(summaryIndex + 1, detailsIndex).join('\n').trim(),
           details: lines.slice(detailsIndex + 1, logiwaImpactIndex).join('\n').trim().split('\n')
             .filter(l => l.trim().startsWith('- '))
             .map(l => l.replace('- ', '').trim()),
           logiwaImpact: lines.slice(logiwaImpactIndex + 1, actionRequiredIndex).join('\n').trim(),
-          actionRequired: lines.slice(actionRequiredIndex + 1).join('\n').split('---')[0].trim()
+          actionRequired: lines.slice(actionRequiredIndex + 1).join('\n').split('---')[0].replace('> ', '').trim()
         };
       });
     } catch (e) {
@@ -433,6 +436,7 @@ function App() {
           <thead>
             <tr>
               <th>Integration Name</th>
+              <th>Release Date</th>
               <th>Status</th>
               <th>Impact Area</th>
               <th>Recommended Action</th>
@@ -442,6 +446,7 @@ function App() {
             {readinessData.map((row, i) => (
               <tr key={i}>
                 <td style={{ fontWeight: '500' }}>{row.integration}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{row.last_date}</td>
                 <td>
                   <span className={`status-dot ${row.status === 'Ready' ? 'status-ready' :
                     row.status === 'Action Required' ? 'status-action' : 'status-review'
@@ -876,7 +881,10 @@ function App() {
                           )}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <h2 style={{ fontSize: '16px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <h2 style={{ fontSize: '16px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold' }}>REL: {item.releaseDate}</span>
+                          </div>
                           <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                             <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
                             <span style={{
@@ -898,10 +906,10 @@ function App() {
                           <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
                           <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
                         </div>
-                        <div style={{ padding: '20px', background: '#f1f5f9' }}>
-                          <p style={{ fontWeight: '800', marginBottom: '10px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Operational Mandate</p>
-                          <p style={{ fontWeight: '600', fontSize: '13px', color: '#0f172a', lineHeight: '1.4' }}>
-                            {item.action_required}
+                        <div style={{ padding: '20px', background: '#f8fafc', borderLeft: '4px solid #10b981' }}>
+                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', color: '#059669' }}>✅ Recommended Action</p>
+                          <p style={{ fontWeight: '600', fontSize: '13px', color: '#064e3b', lineHeight: '1.5', margin: 0 }}>
+                            {item.actionRequired}
                           </p>
                         </div>
                       </div>
