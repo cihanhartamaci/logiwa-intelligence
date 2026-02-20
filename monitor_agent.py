@@ -44,7 +44,10 @@ def job():
     frequency = sys_config.get('frequency', 'Daily')
     last_run = sys_config.get('last_run')
     
-    if last_run and frequency != 'Manual':
+    # Manual run bypass (triggered via Dashboard)
+    is_manual = os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    
+    if last_run and frequency != 'Manual' and not is_manual:
         from datetime import datetime, timezone
         # last_run is usually already a datetime object from firebase-admin
         now = datetime.now(timezone.utc)
@@ -54,7 +57,7 @@ def job():
             
         diff = now - last_run
         
-        if frequency == 'Daily' and diff.total_seconds() < 23 * 3600:
+        if frequency == 'Daily' and diff.total_seconds() < 22 * 3600:
             logger.info(f"Skipping: Daily frequency not met. Last run: {last_run}")
             return
         if frequency == 'Weekly' and diff.total_seconds() < 6 * 24 * 3600:
