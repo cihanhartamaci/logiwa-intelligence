@@ -45,7 +45,10 @@ def job():
     last_run = sys_config.get('last_run')
     
     # Manual run bypass (triggered via Dashboard)
-    is_manual = os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    event_name = os.getenv("GITHUB_EVENT_NAME", "local")
+    is_manual = event_name == "workflow_dispatch"
+    
+    logger.info(f"Event detected: {event_name}. Frequency: {frequency}. Manual Bypass: {is_manual}")
     
     if last_run and frequency != 'Manual' and not is_manual:
         from datetime import datetime, timezone
