@@ -29,7 +29,7 @@ function App() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [intelReports, setIntelReports] = useState([]);
   const [githubPat, setGithubPat] = useState(localStorage.getItem('gh_pat') || '');
-  const [frequency, setFrequency] = useState('Daily');
+  const [frequency, setFrequency] = useState(localStorage.getItem('monitoring_frequency') || 'Daily');
   const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
@@ -157,6 +157,7 @@ function App() {
 
   const saveSettings = () => {
     localStorage.setItem('gh_pat', githubPat);
+    localStorage.setItem('monitoring_frequency', frequency);
     setShowSettings(false);
     alert("Settings saved!");
   };
