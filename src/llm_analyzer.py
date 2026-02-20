@@ -77,32 +77,41 @@ class LLMAnalyzer:
 
 
             response_text = ""
-            # Fallback strategy: Rotate through models if one hits a rate limit
-            gemini_fallbacks = [self.model, "gemini-1.5-flash", "gemini-1.5-pro", "pollinations"]
+            # 3-Tier Fallback Strategy:
+            # Tier 1: Gemini (Flash, Flash-8b, Pro)
+            # Tier 2: Pollinations.ai (Main Model)
+            # Tier 3: Pollinations.ai (Alternative Model)
+            fallbacks = [
+                {"provider": "gemini", "model": self.model},
+                {"provider": "gemini", "model": "gemini-1.5-flash-latest"},
+                {"provider": "gemini", "model": "gemini-1.5-flash-8b-latest"},
+                {"provider": "gemini", "model": "gemini-1.5-pro-latest"},
+                {"provider": "pollinations", "model": "openai"}, # GPT-4o-mini proxy
+                {"provider": "pollinations", "model": "mistral-large"}, # Mistral backup
+                {"provider": "pollinations", "model": "llama"} # Llama backup
+            ]
             
-            # If not using Gemini, just retry the same model
+            # If not using Gemini initially, adjust list
             if self.provider != 'gemini':
-                gemini_fallbacks = [self.model]
+                fallbacks = [{"provider": self.provider, "model": self.model}] + [f for f in fallbacks if f['provider'] == 'pollinations']
 
-            max_retries = len(gemini_fallbacks) * 2 # Allow 2 tries per model
+            max_retries = len(fallbacks)
             retry_count = 0
-            model_index = 0
             import time
 
             while retry_count < max_retries:
-                # Pick current model from rotation
-                current_model_name = gemini_fallbacks[model_index % len(gemini_fallbacks)]
+                current = fallbacks[retry_count]
+                current_provider = current['provider']
+                current_model = current['model']
                 
                 try:
-                    if current_model_name == 'pollinations':
-                        logger.info("Fallback: Calling Pollinations.ai (Free Backup)...")
-                        # Pollinations AI - OpenAI Compatible Endpoint
-                        # Docs: https://github.com/pollinations/pollinations/blob/master/APIDOCS.md
+                    if current_provider == 'pollinations':
+                        logger.info(f"Tier {retry_count+1}: Calling Pollinations.ai ({current_model})...")
                         resp = requests.post(
                             "https://text.pollinations.ai/openai/chat/completions",
                             headers={"Content-Type": "application/json"},
                             json={
-                                "model": "openai", # Generic model selector
+                                "model": current_model,
                                 "messages": [{"role": "user", "content": prompt}],
                                 "temperature": 0.1
                             },
@@ -113,43 +122,37 @@ class LLMAnalyzer:
                             if isinstance(data, dict) and 'choices' in data:
                                 response_text = data['choices'][0]['message']['content']
                             else:
-                                # Sometimes pollinations returns direct text if the proxy is bypassed
                                 response_text = resp.text
-                            break
+                            if response_text: break
                         else:
-                            raise Exception(f"Pollinations Error: {resp.status_code} - {resp.text}")
+                            raise Exception(f"Pollinations Error: {resp.status_code}")
 
-                    elif self.provider == 'openai':
+                    elif current_provider == 'openai':
                         response = self.client.chat.completions.create(
-                            model=self.model, 
+                            model=current_model, 
                             messages=[{"role": "user", "content": prompt}],
                             response_format={ "type": "json_object" }
                         )
                         response_text = response.choices[0].message.content
-                        break # Success
+                        break
                         
-                    elif self.provider == 'gemini':
-                        logger.info(f"Attempting analysis with model: {current_model_name}")
-                        model = self.client.GenerativeModel(current_model_name)
+                    elif current_provider == 'gemini':
+                        logger.info(f"Tier {retry_count+1}: Attempting Gemini with model: {current_model}")
+                        model = self.client.GenerativeModel(current_model)
                         response = model.generate_content(prompt)
                         response_text = response.text
-                        break # Success
+                        break
                 
                 except Exception as e:
                     error_str = str(e)
-                    # Pollinations errors or Gemini Quota errors triggers retry
-                    if "429" in error_str or "quota" in error_str.lower() or "Pollinations Error" in error_str:
-                        retry_count += 1
-                        # Switch to next model
-                        model_index += 1
-                        next_model = gemini_fallbacks[model_index % len(gemini_fallbacks)]
-                        
-                        wait_time = 5 # Short wait when switching models
-                        logger.warning(f"Error on {current_model_name} ({e}). Switching to {next_model} in {wait_time}s...")
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        # "Beklemeden" fallback for 429/404
+                        wait_time = 2 if ("429" in error_str or "quota" in error_str.lower() or "404" in error_str) else 5
+                        logger.warning(f"Error on {current_model}: {e}. Switching to Tier {retry_count+1} in {wait_time}s...")
                         time.sleep(wait_time)
                     else:
-                        logger.error(f"Non-retriable error: {e}")
-                        raise e # Not a rate limit error, re-raise
+                        logger.error(f"All tiers failed. Final error: {e}")
 
             if not response_text:
                  return {
