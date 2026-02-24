@@ -190,3 +190,43 @@ class LLMAnalyzer:
                 "type": "Error",
                 "is_relevant": False
             }
+    def generate_customer_notes(self, technical_details):
+        """
+        Translates complex technical integration updates into polished, 
+        customer-facing release notes or blog post drafts.
+        """
+        prompt = f"""
+        You are a Product Marketing Manager for Logiwa WMS. 
+        Transform the following technical integration updates into a professional "What's New for Customers" bülten (blog post / newsletter style).
+        
+        TECHNICAL DETAILS:
+        {technical_details}
+        
+        Guidelines:
+        - Avoid technical jargon (e.g., talk about "Easier weight tracking" instead of "New GraphQL weight field").
+        - Highlight the BENEFIT to the customer (Logiwa user).
+        - Use a professional, exciting, and clear tone.
+        - Format with clean headings and bullet points.
+        - Include a brief "Why it matters" section.
+        
+        OUTPUT FORMAT (Markdown):
+        # 🚀 What's New: Integration Updates
+        [Summary paragraph]
+        
+        ## [Feature/Update Name]
+        [Brief description of improvement]
+        - **Benefit**: [How it helps the user]
+        
+        ## Why It Matters
+        [Impact summary]
+        """
+        
+        try:
+            # Reusing the existing multi-tier logic but specifically for this text generation task
+            # For simplicity in this step, we use the primary model but we could wrap the fallback logic into a private method
+            model = self.client.GenerativeModel(self.model)
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            logger.error(f"Customer note generation failed: {e}")
+            return "Professional notes could not be generated at this time."

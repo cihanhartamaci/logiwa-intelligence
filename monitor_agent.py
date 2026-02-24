@@ -88,6 +88,18 @@ def job():
     # 2. Fetch Updates
     updates = fetcher.check_sources(sources, force=is_manual)
     
+    # 2.1 Fetch Manual Injections from Firestore (Custom Scraper Hooks)
+    manual_entries = firebase.get_manual_injections()
+    for entry in manual_entries:
+        logger.info(f"Picked up manual injection: {entry['source']}")
+        updates.append({
+            "id": entry['id'],
+            "source": entry['source'],
+            "url": "Manual Injection",
+            "content": entry['content'],
+            "is_manual_injection": True
+        })
+    
     if not updates:
         logger.info("No new content changes detected.")
         return
@@ -102,6 +114,10 @@ def job():
         analysis = analyzer.analyze(update['content'])
         
         if analysis.get('is_relevant'):
+            # Update hash in Firestore to avoid re-triggering next time (Stateless migration)
+            if firebase and update.get('new_hash'):
+                firebase.update_url_hash(update['id'], update['new_hash'])
+
             alert = {
                 "source": update['source'],
                 "url": update['url'],
@@ -130,7 +146,10 @@ def job():
                     "last_date": analysis.get('release_date', 'N/A')
                 }
                 logger.info(f"Updating Firestore status for {update['source']}...")
-                firebase.update_url_status(source_id, status_data)
+                if update.get('is_manual_injection'):
+                    firebase.mark_manual_injection_processed(source_id)
+                else:
+                    firebase.update_url_status(source_id, status_data)
 
             # Format for the detailed report content
             report_content += f"## {update['source']}\n"
@@ -156,9 +175,14 @@ def job():
 
     # 5. Persistence (Save to Firestore)
     if alerts:
+        # Generate Customer Facing Notes from the aggregate technical content
+        logger.info("Generating professional customer-facing release notes...")
+        customer_notes = analyzer.generate_customer_notes(report_content)
+
         firebase.save_report({
             "name": f"Intel Report - {time.strftime('%b %d, %Y')}",
             "content": report_content,
+            "customer_content": customer_notes, # New field for Export Center
             "status": "Ready",
             "alert_count": len(alerts)
         })

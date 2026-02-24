@@ -44,6 +44,9 @@ function App() {
   const [intelligenceFreshness, setIntelligenceFreshness] = useState('1 Month');
   const [manualIntelligenceFreshness, setManualIntelligenceFreshness] = useState('3 Months');
   const [syncStatus, setSyncStatus] = useState('Initializing...');
+  const [showManualInject, setShowManualInject] = useState(false);
+  const [manualData, setManualData] = useState({ source: '', content: '' });
+  const [viewMode, setViewMode] = useState('Technical'); // Technical vs Customer
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -188,6 +191,27 @@ function App() {
     } catch (e) {
       console.error("Error updating document: ", e);
       alert("Error updating URL. Check console.");
+    }
+  };
+
+  const handleManualInject = async (e) => {
+    e.preventDefault();
+    if (!manualData.source || !manualData.content) {
+      alert("Please provide both source name and content.");
+      return;
+    }
+    try {
+      await addDoc(collection(db, "manual_injections"), {
+        source: manualData.source,
+        content: manualData.content,
+        status: "Pending",
+        timestamp: new Date()
+      });
+      setManualData({ source: '', content: '' });
+      setShowManualInject(false);
+      alert("Content injected manually! It will be analyzed in the next Intelligence Cycle.");
+    } catch (error) {
+      alert("Error injecting content: " + error.message);
     }
   };
 
@@ -529,6 +553,9 @@ function App() {
           <button className="btn" onClick={seedIndustrySources} style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', color: 'var(--accent-cyan)' }}>
             Load Default Industry Sources
           </button>
+          <button className="btn btn-primary" onClick={() => setShowManualInject(true)} style={{ fontSize: '0.75rem' }}>
+            + Manual Content Inject
+          </button>
         </div>
         <div style={{ padding: '1rem' }}>
           <table>
@@ -857,8 +884,24 @@ function App() {
                 <span style={{ fontWeight: '600', color: '#666' }}>Intelligence Report Preview</span>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ background: '#eee', padding: '4px', borderRadius: '8px', display: 'flex', marginRight: '1rem' }}>
+                  <button
+                    className={`btn ${viewMode === 'Technical' ? 'btn-primary' : ''}`}
+                    style={{ padding: '4px 12px', fontSize: '0.75rem', borderRadius: '6px' }}
+                    onClick={() => setViewMode('Technical')}
+                  >
+                    Technical
+                  </button>
+                  <button
+                    className={`btn ${viewMode === 'Customer' ? 'btn-primary' : ''}`}
+                    style={{ padding: '4px 12px', fontSize: '0.75rem', borderRadius: '6px' }}
+                    onClick={() => setViewMode('Customer')}
+                  >
+                    Customer Facing
+                  </button>
+                </div>
                 <button className="btn btn-primary" onClick={() => downloadPdf(selectedReport)} disabled={cycleStatus === 'running'}>
-                  {cycleStatus === 'running' ? 'Generating...' : 'Download Professional PDF'}
+                  {cycleStatus === 'running' ? 'Generating...' : 'Download PDF'}
                 </button>
                 <button className="btn" style={{ color: '#666' }} onClick={() => setShowPdfViewer(false)}>Close</button>
               </div>
@@ -912,43 +955,57 @@ function App() {
 
                 {/* Content Sections */}
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  {parseReportMarkdown(selectedReport.content).map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: '50px', pageBreakInside: 'avoid' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
-                        <div style={{ width: '60px', height: '60px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
-                          {getLogo(item.title) ? (
-                            <img src={getLogo(item.title)} alt={item.title} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
-                          ) : (
-                            <div style={{ fontSize: '20px' }}>📦</div>
-                          )}
+                  {viewMode === 'Technical' ? (
+                    parseReportMarkdown(selectedReport.content).map((item, idx) => (
+                      <div key={idx} style={{ marginBottom: '50px', pageBreakInside: 'avoid' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+                          <div style={{ width: '60px', height: '60px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
+                            {getLogo(item.title) ? (
+                              <img src={getLogo(item.title)} alt={item.title} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+                            ) : (
+                              <div style={{ fontSize: '20px' }}>📦</div>
+                            )}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <h2 style={{ fontSize: '16px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
+                              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold' }}>REL: {item.releaseDate}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                              <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
+                              <span style={{
+                                padding: '2px 10px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                background: item.impact.startsWith('High') ? '#ef4444' : item.impact.startsWith('Medium') ? '#f59e0b' : '#10b981',
+                                color: '#fff',
+                              }}>
+                                {item.impact.toUpperCase()} IMPACT
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <h2 style={{ fontSize: '16px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
-                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold' }}>REL: {item.releaseDate}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                            <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
-                            <span style={{
-                              padding: '2px 10px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '800',
-                              background: item.impact.startsWith('High') ? '#ef4444' : item.impact.startsWith('Medium') ? '#f59e0b' : '#10b981',
-                              color: '#fff',
-                            }}>
-                              {item.impact.toUpperCase()} IMPACT
-                            </span>
-                          </div>
+
+                        <div style={{ padding: '20px' }}>
+                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
+                          <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
                         </div>
                       </div>
-
-                      <div style={{ padding: '20px' }}>
-                        <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
-                        <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
+                    ))
+                  ) : (
+                    <div className="customer-notes-view" style={{ fontSize: '14px', lineHeight: '1.7', color: '#1e293b' }}>
+                      <div style={{ padding: '30px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', color: '#047857' }}>
+                          <span style={{ fontSize: '24px' }}>🛡️</span>
+                          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>Customer-Facing Release Notes</h2>
+                        </div>
+                        <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'serif', fontSize: '16px' }}>
+                          {selectedReport.customer_content || "Professional customer notes are being prepared by AI. Please check back shortly or run a new cycle."}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 {/* Footer Section */}
@@ -1025,7 +1082,45 @@ function App() {
 
         {renderContent()}
       </main>
-    </div >
+      {showManualInject && (
+        <div className="modal-overlay">
+          <div className="modal-content glass" style={{ maxWidth: '600px' }}>
+            <h2 style={{ marginBottom: '1rem', color: 'var(--accent-cyan)' }}>Custom Scraper Hook (Manual Inject)</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+              Paste release notes or technical text from restricted portals (Logins, PDFs, closed partners).
+            </p>
+            <form onSubmit={handleManualInject}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>External Source Name</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Oracle Partners Portal"
+                  value={manualData.source}
+                  onChange={e => setManualData({ ...manualData, source: e.target.value })}
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Paste Content Here</label>
+                <textarea
+                  className="input-field"
+                  style={{ minHeight: '200px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                  placeholder="Paste the raw text update or release note here..."
+                  value={manualData.content}
+                  onChange={e => setManualData({ ...manualData, content: e.target.value })}
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn" style={{ color: '#aaa' }} onClick={() => setShowManualInject(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Inject and Queue for AI</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

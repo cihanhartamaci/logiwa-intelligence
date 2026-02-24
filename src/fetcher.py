@@ -9,30 +9,10 @@ import os
 logger = logging.getLogger("Fetcher")
 
 class Fetcher:
-    def __init__(self, state_path="data/state.json"):
+    def __init__(self):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        self.state_path = state_path
-        self.state = self._load_state()
-
-    def _load_state(self):
-        if os.path.exists(self.state_path):
-            try:
-                with open(self.state_path, 'r') as f:
-                    return json.load(f)
-            except Exception as e:
-                logger.error(f"Error loading state: {e}")
-                return {}
-        return {}
-
-    def _save_state(self):
-        os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
-        try:
-            with open(self.state_path, 'w') as f:
-                json.dump(self.state, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error saving state: {e}")
 
     def get_content_hash(self, content):
         return hashlib.md5(content.encode('utf-8')).hexdigest()
@@ -98,9 +78,9 @@ class Fetcher:
         """
         Iterates through sources and returns those that have changed using hash comparison.
         If force is True, hash comparison is bypassed.
+        Bypasses local state and uses 'last_hash' from the source config (Firestore).
         """
         updates = []
-        state_changed = False
         
         for source in sources_config:
             logger.info(f"Checking source: {source['name']}")
@@ -109,11 +89,11 @@ class Fetcher:
             if content:
                 hash_text = content[:5000] # Use a stable prefix for hashing
                 current_hash = self.get_content_hash(hash_text)
-                previous_hash = self.state.get(source['name'])
+                previous_hash = source.get('last_hash')
                 
                 if force or current_hash != previous_hash:
                     if force:
-                        logger.info(f"Force fetch active for: {source['name']}")
+                        logger.info(f"Force fetch active fully for: {source['name']}")
                     else:
                         logger.info(f"New content detected for: {source['name']}")
                     
@@ -127,15 +107,11 @@ class Fetcher:
                         "id": source.get("id"),
                         "source": source['name'],
                         "url": source['url'],
-                        "content": context_content
+                        "content": context_content,
+                        "new_hash": current_hash # Return the new hash to be saved by the controller
                     })
-                    self.state[source['name']] = current_hash
-                    state_changed = True
                 else:
                     logger.info(f"No changes for: {source['name']}")
-        
-        if state_changed:
-            self._save_state()
             
         return updates
 

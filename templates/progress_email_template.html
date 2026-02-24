@@ -1,109 +1,211 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            color: #333;
-            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
         }
 
-        .container {
-            max-width: 600px;
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #f8fafc;
+            padding-bottom: 40px;
+        }
+
+        .main {
+            background-color: #ffffff;
             margin: 0 auto;
-            border: 1px solid #ddd;
-            padding: 20px;
-            border-radius: 8px;
+            width: 100%;
+            max-width: 600px;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .header {
-            background-color: #007bff;
-            color: white;
-            padding: 10px;
+            background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+            padding: 40px 20px;
             text-align: center;
-            border-radius: 8px 8px 0 0;
+            color: #ffffff;
+        }
+
+        .logo {
+            height: 48px;
+            margin-bottom: 16px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.025em;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .content {
+            padding: 32px 24px;
         }
 
         .section {
-            margin-bottom: 20px;
+            margin-bottom: 32px;
         }
 
-        .section h2 {
-            color: #0056b3;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 5px;
+        .section-header {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #047857;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 8px;
         }
 
-        ul {
-            padding-left: 20px;
+        .summary-box {
+            background-color: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 1.6;
+            border-left: 4px solid #047857;
         }
 
-        .risk {
-            color: #d9534f;
-            font-weight: bold;
+        .list-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .dot {
+            height: 8px;
+            width: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            margin-top: 6px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .dot.risk {
+            background-color: #ef4444;
+        }
+
+        .dot.progress {
+            background-color: #3b82f6;
+        }
+
+        .item-text {
+            font-size: 15px;
+            color: #334155;
         }
 
         .footer {
-            font-size: 12px;
-            color: #777;
             text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #047857;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
             margin-top: 20px;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png" alt="Logiwa"
-                style="height: 40px; margin-bottom: 10px;" />
-            <h1>🚀 Weekly Integration Progress</h1>
-            <p>{{ week_date }}</p>
-        </div>
+    <center class="wrapper">
+        <table class="main" width="100%">
+            <tr>
+                <td class="header">
+                    <img src="https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png"
+                        alt="Logiwa Logo" class="logo">
+                    <h1 class="title">Integration Progress Update</h1>
+                    <p class="subtitle">{{ week_date }} | Intelligence Cycle Report</p>
+                </td>
+            </tr>
+            <tr>
+                <td class="content">
+                    <div class="section">
+                        <div class="section-header">Executive Summary</div>
+                        <div class="summary-box">
+                            {{ summary }}
+                        </div>
+                    </div>
 
-        <div class="section">
-            <h2>Executive Summary</h2>
-            <p>{{ summary }}</p>
-        </div>
+                    <div class="section">
+                        <div class="section-header" style="color: #10b981;">✅ Completed Milestones</div>
+                        {% for item in completed_items %}
+                        <div class="list-item">
+                            <div class="dot"></div>
+                            <div class="item-text">{{ item }}</div>
+                        </div>
+                        {% else %}
+                        <p style="font-size: 14px; color: #94a3b8;">No major completions recorded this period.</p>
+                        {% endfor %}
+                    </div>
 
-        <div class="section">
-            <h2>✅ Completed</h2>
-            <ul>
-                {% for item in completed_items %}
-                <li>{{ item }}</li>
-                {% else %}
-                <li>No items completed this week.</li>
-                {% endfor %}
-            </ul>
-        </div>
+                    <div class="section">
+                        <div class="section-header" style="color: #3b82f6;">🚧 Current Initiatives</div>
+                        {% for item in in_progress_items %}
+                        <div class="list-item">
+                            <div class="dot progress"></div>
+                            <div class="item-text">{{ item }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
 
-        <div class="section">
-            <h2>🚧 In Progress</h2>
-            <ul>
-                {% for item in in_progress_items %}
-                <li>{{ item }}</li>
-                {% endfor %}
-            </ul>
-        </div>
+                    {% if risks %}
+                    <div class="section">
+                        <div class="section-header" style="color: #ef4444;">🚨 Critical Risks & Blockers</div>
+                        {% for risk in risks %}
+                        <div class="list-item">
+                            <div class="dot risk"></div>
+                            <div class="item-text" style="color: #991b1b; font-weight: 500;">{{ risk }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
 
-        {% if risks %}
-        <div class="section">
-            <h2>⚠️ Risks & Blockers</h2>
-            <ul>
-                {% for risk in risks %}
-                <li class="risk">{{ risk }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-
-        <div class="footer">
-            Generated by Logiwa Internal Reporter Agent
-        </div>
-    </div>
+                    <center>
+                        <a href="https://cihanhartamaci.github.io/logiwa-intelligence/" class="btn">View Intelligence
+                            Dashboard</a>
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td class="footer">
+                    &copy; 2026 Logiwa WMS. All rights reserved.<br>
+                    Generated by Logiwa Integration Intelligence AI
+                </td>
+            </tr>
+        </table>
+    </center>
 </body>
 
 </html>
