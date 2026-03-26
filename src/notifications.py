@@ -2,6 +2,7 @@ import logging
 import os
 import requests
 import smtplib
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -24,6 +25,14 @@ class Notifier:
             return
 
         color = "#FF0000" if alert['impact_level'] == 'High' else "#FFA500"
+        
+        # Deep link direct to text if available
+        alert_url = alert['url']
+        exact_quote = alert.get('exact_quote', '')
+        if exact_quote:
+            encoded_quote = urllib.parse.quote(exact_quote)
+            alert_url = f"{alert_url}#:~:text={encoded_quote}"
+            
         payload = {
             "attachments": [
                 {
@@ -32,7 +41,7 @@ class Notifier:
                     "author_icon": "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png",
                     "pretext": f"🚨 *New Integration Alert: {alert['source']}*",
                     "title": alert[ 'type'],
-                    "title_link": alert['url'],
+                    "title_link": alert_url,
                     "text": f"*{alert['impact_level']} Impact*\n{alert['summary']}",
                     "footer": "Logiwa AI Monitor",
                     "footer_icon": "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png"

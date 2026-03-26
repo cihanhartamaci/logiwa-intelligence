@@ -56,6 +56,7 @@ class LLMAnalyzer:
         6. 'type': Breaking Change, New Capability, Maintenance, Info.
         7. 'release_date': The date of the update/release (e.g. "2026-02-20"). If not found, use N/A.
         8. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last {freshness}?
+        9. 'exact_quote': A unique, short string (5-10 words) quoted EXACTLY from the text that pinpoints this update. Do not modify the text, copy it exactly.
         
         Output JSON format:
         {{
@@ -66,7 +67,8 @@ class LLMAnalyzer:
             "impact_level": "High/Medium/Low",
             "type": "...",
             "release_date": "YYYY-MM-DD",
-            "is_relevant": true
+            "is_relevant": true,
+            "exact_quote": "..."
         }}
         """
 

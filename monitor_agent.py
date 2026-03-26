@@ -127,7 +127,8 @@ def job():
                 "action_required": analysis.get('action_required', 'N/A'),
                 "impact_level": analysis['impact_level'],
                 "type": analysis['type'],
-                "release_date": analysis.get('release_date', 'N/A')
+                "release_date": analysis.get('release_date', 'N/A'),
+                "exact_quote": analysis.get('exact_quote', '')
             }
             alerts.append(alert)
             
