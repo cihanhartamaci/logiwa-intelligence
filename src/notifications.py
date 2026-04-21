@@ -75,7 +75,14 @@ class Notifier:
         """
         for alert in alerts:
             icon = "🔴" if alert['impact_level'] == 'High' else "🟡"
-            body += f"<li style='margin-bottom: 10px;'>{icon} <b>{alert['source']}</b>: {alert['summary']} (<a href='{alert['url']}'>View Source</a>)</li>"
+            
+            alert_url = alert['url']
+            exact_quote = alert.get('exact_quote', '')
+            if exact_quote:
+                encoded_quote = urllib.parse.quote(exact_quote)
+                alert_url = f"{alert_url}#:~:text={encoded_quote}"
+                
+            body += f"<li style='margin-bottom: 10px;'>{icon} <b>{alert['source']}</b>: {alert['summary']} (<a href='{alert_url}'>View Source</a>)</li>"
         
         body += """
             </ul>

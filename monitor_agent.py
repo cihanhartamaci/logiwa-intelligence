@@ -3,6 +3,7 @@ import time
 import os
 import yaml
 import schedule
+import urllib.parse
 from dotenv import load_dotenv
 from src.fetcher import Fetcher
 from src.llm_analyzer import LLMAnalyzer
@@ -111,7 +112,7 @@ def job():
     
     for update in updates:
         logger.info(f"Analyzing update from: {update['source']}")
-        analysis = analyzer.analyze(update['content'])
+        analysis = analyzer.analyze(update['content'], update['url'])
         
         if analysis.get('is_relevant'):
             # Update hash in Firestore to avoid re-triggering next time (Stateless migration)
@@ -120,7 +121,7 @@ def job():
 
             alert = {
                 "source": update['source'],
-                "url": update['url'],
+                "url": analysis.get('source_url', update['url']),
                 "summary": analysis['summary'],
                 "details": analysis.get('details', []),
                 "logiwa_impact": analysis.get('logiwa_impact', 'N/A'),
@@ -153,8 +154,14 @@ def job():
                     firebase.update_url_status(source_id, status_data)
 
             # Format for the detailed report content
+            
+            deep_link = alert['url']
+            if alert.get('exact_quote'):
+                deep_link = f"{alert['url']}#:~:text={urllib.parse.quote(alert['exact_quote'])}"
+            
             report_content += f"## {update['source']}\n"
-            report_content += f"**Release Date:** {analysis.get('release_date', 'N/A')} | **Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n\n"
+            report_content += f"**Release Date:** {analysis.get('release_date', 'N/A')} | **Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n"
+            report_content += f"**Source:** [View Documentation]({deep_link})\n\n"
             report_content += f"### Summary\n{analysis['summary']}\n\n"
             report_content += "### Technical Details\n"
             for detail in analysis.get('details', []):

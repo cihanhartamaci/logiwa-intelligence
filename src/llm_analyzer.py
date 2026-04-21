@@ -29,7 +29,7 @@ class LLMAnalyzer:
         else:
             self.client = None
         
-    def analyze(self, content, freshness=30):
+    def analyze(self, content, base_url, freshness=30):
         import datetime
         today = datetime.datetime.now().strftime("%Y-%m-%d")
         
@@ -37,6 +37,7 @@ class LLMAnalyzer:
         You are an Integration Architect for Logiwa WMS. Analyze the following update text for deep technical impact.
         
         TODAY'S DATE: {today}
+        BASE URL: {base_url}
         
         TEXT:
         {content[:6000]} # Increased context limit
@@ -57,6 +58,7 @@ class LLMAnalyzer:
         7. 'release_date': The date of the update/release (e.g. "2026-02-20"). If not found, use N/A.
         8. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last {freshness}?
         9. 'exact_quote': A unique, short string (5-10 words) quoted EXACTLY from the text that pinpoints this update. Do not modify the text, copy it exactly.
+        10. 'source_url': The specific URL where this update was found. If it was found under a "--- SUB-DETAIL FROM [URL] ---" section, provide that [URL]. Otherwise, provide the BASE URL: {base_url}
         
         Output JSON format:
         {{
@@ -68,7 +70,8 @@ class LLMAnalyzer:
             "type": "...",
             "release_date": "YYYY-MM-DD",
             "is_relevant": true,
-            "exact_quote": "..."
+            "exact_quote": "...",
+            "source_url": "..."
         }}
         """
 
