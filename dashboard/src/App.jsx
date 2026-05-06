@@ -28,7 +28,7 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
-  const [newUrl, setNewUrl] = useState({ name: '', url: '', category: 'ERPs' });
+  const [newUrl, setNewUrl] = useState({ name: '', url: '', category: 'ERPs', scopes: '' });
   const [monitoredUrls, setMonitoredUrls] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
@@ -40,7 +40,7 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [cycleStatus, setCycleStatus] = useState(null);
   const [editingUrl, setEditingUrl] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', url: '', category: '' });
+  const [editForm, setEditForm] = useState({ name: '', url: '', category: '', scopes: '' });
   const [intelligenceFreshness, setIntelligenceFreshness] = useState('1 Month');
   const [manualIntelligenceFreshness, setManualIntelligenceFreshness] = useState('3 Months');
   const [syncStatus, setSyncStatus] = useState('Initializing...');
@@ -166,8 +166,11 @@ function App() {
     e.preventDefault();
     if (newUrl.name && newUrl.url) {
       try {
-        await addDoc(collection(db, "monitored_urls"), newUrl);
-        setNewUrl({ name: '', url: '', category: 'ERPs' });
+        await addDoc(collection(db, "monitored_urls"), {
+          ...newUrl,
+          scopes: newUrl.scopes ? newUrl.scopes.split(',').map(s => s.trim()) : []
+        });
+        setNewUrl({ name: '', url: '', category: 'ERPs', scopes: '' });
       } catch (error) {
         alert("Error adding source: " + error.message);
       }
@@ -176,7 +179,12 @@ function App() {
 
   const handleEditUrl = (item) => {
     setEditingUrl(item.id);
-    setEditForm({ name: item.name, url: item.url, category: item.category || 'API Documentation' });
+    setEditForm({ 
+      name: item.name, 
+      url: item.url, 
+      category: item.category || 'API Documentation',
+      scopes: Array.isArray(item.scopes) ? item.scopes.join(', ') : (item.scopes || '')
+    });
   };
 
   const handleUpdateUrl = async (e) => {
@@ -185,7 +193,8 @@ function App() {
       await updateDoc(doc(db, "monitored_urls", editingUrl), {
         name: editForm.name,
         url: editForm.url,
-        category: editForm.category
+        category: editForm.category,
+        scopes: editForm.scopes ? editForm.scopes.split(',').map(s => s.trim()) : []
       });
       setEditingUrl(null);
     } catch (e) {
@@ -543,6 +552,16 @@ function App() {
               {categories.map(cat => <option key={cat}>{cat}</option>)}
             </select>
           </div>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Analysis Scopes (Comma separated)</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="e.g. API Changes, Webhooks"
+              value={newUrl.scopes}
+              onChange={e => setNewUrl({ ...newUrl, scopes: e.target.value })}
+            />
+          </div>
           <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>Add Source</button>
         </form>
       </section>
@@ -645,6 +664,16 @@ function App() {
                 >
                   {categories.map(cat => <option key={cat}>{cat}</option>)}
                 </select>
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Analysis Scopes (Comma separated)</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editForm.scopes}
+                  onChange={e => setEditForm({ ...editForm, scopes: e.target.value })}
+                  placeholder="e.g. API Changes, Webhooks"
+                />
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn" style={{ color: '#aaa' }} onClick={() => setEditingUrl(null)}>Cancel</button>
