@@ -112,7 +112,11 @@ def job():
     
     for update in updates:
         logger.info(f"Analyzing update from: {update['source']}")
-        analysis = analyzer.analyze(update['content'], update['url'])
+        analysis = analyzer.analyze(
+            update['content'], 
+            update['url'], 
+            scopes=update.get('scopes')
+        )
         
         if analysis.get('is_relevant'):
             # Update hash in Firestore to avoid re-triggering next time (Stateless migration)

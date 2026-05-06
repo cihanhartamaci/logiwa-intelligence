@@ -29,12 +29,17 @@ class LLMAnalyzer:
         else:
             self.client = None
         
-    def analyze(self, content, base_url, freshness=30):
+    def analyze(self, content, base_url, freshness=30, scopes=None):
         import datetime
         today = datetime.datetime.now().strftime("%Y-%m-%d")
         
+        scope_instruction = ""
+        if scopes:
+            scope_instruction = f"\nSCOPE FOCUS: The user is specifically interested in the following areas: {', '.join(scopes)}. Prioritize and deeply analyze any changes matching these scopes."
+
         prompt = f"""
         You are an Integration Architect for Logiwa WMS. Analyze the following update text for deep technical impact.
+        {scope_instruction}
         
         TODAY'S DATE: {today}
         BASE URL: {base_url}

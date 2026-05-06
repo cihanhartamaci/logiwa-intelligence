@@ -55,6 +55,7 @@ class FirebaseManager:
                     "name": data.get("name"),
                     "url": data.get("url"),
                     "category": data.get("category", "General"),
+                    "scopes": data.get("scopes", []), # Added scopes support
                     "last_hash": data.get("last_hash")
                 })
             return urls

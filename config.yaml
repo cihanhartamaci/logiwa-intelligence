@@ -26,9 +26,11 @@ sources:
   - name: "NetSuite Release Notes"
     url: "https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html"
     category: "ERPs"
+    scopes: ["API endpoint changes", "Integration authentication updates"]
   - name: "Shopify Changelog"
     url: "https://shopify.dev/changelog"
     category: "Marketplaces"
+    scopes: ["Webhooks", "REST/GraphQL API changes"]
   - name: "Shippo Changelog"
     url: "https://goshippo.com/docs/changelog/"
     category: "Carriers"
