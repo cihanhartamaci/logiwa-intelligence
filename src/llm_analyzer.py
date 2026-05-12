@@ -34,8 +34,10 @@ class LLMAnalyzer:
         today = datetime.datetime.now().strftime("%Y-%m-%d")
         
         scope_instruction = ""
+        scope_filtering_rule = ""
         if scopes:
-            scope_instruction = f"\nSCOPE FOCUS: The user is specifically interested in the following areas: {', '.join(scopes)}. Prioritize and deeply analyze any changes matching these scopes."
+            scope_instruction = f"\nSCOPE FOCUS: The user ONLY wants to know about changes in these areas: {', '.join(scopes)}."
+            scope_filtering_rule = f"\n        - STRICT SCOPE RULE: If the update does NOT explicitly relate to one of the SCOPE FOCUS areas ({', '.join(scopes)}), you MUST set 'is_relevant': false."
 
         prompt = f"""
         You are an Integration Architect for Logiwa WMS. Analyze the following update text for deep technical impact.
@@ -49,9 +51,9 @@ class LLMAnalyzer:
         
         Your analysis must be detailed and professional.
         
-        DATE FILTERING RULE:
-        - If the technical update, release note, or fix is dated MORE THAN {freshness} AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false.
-        - We only ignore older stuff. We want fresh intelligence from the defined freshness period ({freshness}).
+        FILTERING RULES:
+        - DATE RULE: If the technical update, release note, or fix is dated MORE THAN {freshness} AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false.
+        - DOMAIN RULE: The update must be relevant to WMS, Shipping, or Ecommerce integrations.{scope_filtering_rule}
         
         Task:
         1. 'summary': 1-2 sentence overview.
@@ -61,7 +63,7 @@ class LLMAnalyzer:
         5. 'impact_level': High (Breaking), Medium (New Risk/Capability), Low (Info).
         6. 'type': Breaking Change, New Capability, Maintenance, Info.
         7. 'release_date': The date of the update/release (e.g. "2026-02-20"). If not found, use N/A.
-        8. 'is_relevant': Boolean. Is it relevant to WMS/Shipping/Ecommerce AND within the last {freshness}?
+        8. 'is_relevant': Boolean. Does it pass ALL FILTERING RULES above?
         9. 'exact_quote': A unique, short string (5-10 words) quoted EXACTLY from the text that pinpoints this update. Do not modify the text, copy it exactly.
         10. 'source_url': The specific URL where this update was found. If it was found under a "--- SUB-DETAIL FROM [URL] ---" section, provide that [URL]. Otherwise, provide the BASE URL: {base_url}
         
