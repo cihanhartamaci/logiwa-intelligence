@@ -108,6 +108,8 @@ class Fetcher:
                         "source": source['name'],
                         "url": source['url'],
                         "content": context_content,
+                        "category": source.get("category", "General"),
+                        "scopes": source.get("scopes", []),
                         "new_hash": current_hash # Return the new hash to be saved by the controller
                     })
                 else:

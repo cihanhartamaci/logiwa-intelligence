@@ -111,11 +111,21 @@ def job():
     report_content += f"**Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     
     for update in updates:
-        logger.info(f"Analyzing update from: {update['source']}")
+        category = update.get('category', 'General')
+        scopes = update.get('scopes')
+        
+        # If no explicit scopes, apply category-specific heuristics
+        if not scopes:
+            if category == 'Marketplace' or category == 'ERPs':
+                scopes = ['Orders API', 'Products API', 'Inventory API changes']
+            elif category == 'Carriers':
+                scopes = ['Label creation', 'Void/Refund Label', 'Get Rate endpoints']
+            
+        logger.info(f"Analyzing update from: {update['source']} (Category: {category})")
         analysis = analyzer.analyze(
             update['content'], 
             update['url'], 
-            scopes=update.get('scopes')
+            scopes=scopes
         )
         
         if analysis.get('is_relevant'):

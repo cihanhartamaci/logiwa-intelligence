@@ -28,8 +28,9 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
-  const [newUrl, setNewUrl] = useState({ name: '', url: '', category: 'ERPs', scopes: '' });
+  const [newUrl, setNewUrl] = useState({ integration: '', name: '', url: '', category: 'ERPs', scopes: '' });
   const [monitoredUrls, setMonitoredUrls] = useState([]);
+  const [expandedIntegrations, setExpandedIntegrations] = useState({});
   const [showSettings, setShowSettings] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -40,7 +41,7 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [cycleStatus, setCycleStatus] = useState(null);
   const [editingUrl, setEditingUrl] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', url: '', category: '', scopes: '' });
+  const [editForm, setEditForm] = useState({ integration: '', name: '', url: '', category: '', scopes: '' });
   const [intelligenceFreshness, setIntelligenceFreshness] = useState('1 Month');
   const [manualIntelligenceFreshness, setManualIntelligenceFreshness] = useState('3 Months');
   const [syncStatus, setSyncStatus] = useState('Initializing...');
@@ -170,7 +171,7 @@ function App() {
           ...newUrl,
           scopes: newUrl.scopes ? newUrl.scopes.split(',').map(s => s.trim()) : []
         });
-        setNewUrl({ name: '', url: '', category: 'ERPs', scopes: '' });
+        setNewUrl({ integration: '', name: '', url: '', category: 'ERPs', scopes: '' });
       } catch (error) {
         alert("Error adding source: " + error.message);
       }
@@ -180,6 +181,7 @@ function App() {
   const handleEditUrl = (item) => {
     setEditingUrl(item.id);
     setEditForm({ 
+      integration: item.integration || '',
       name: item.name, 
       url: item.url, 
       category: item.category || 'API Documentation',
@@ -191,6 +193,7 @@ function App() {
     e.preventDefault();
     try {
       await updateDoc(doc(db, "monitored_urls", editingUrl), {
+        integration: editForm.integration,
         name: editForm.name,
         url: editForm.url,
         category: editForm.category,
@@ -201,6 +204,13 @@ function App() {
       console.error("Error updating document: ", e);
       alert("Error updating URL. Check console.");
     }
+  };
+
+  const toggleIntegration = (integrationName) => {
+    setExpandedIntegrations(prev => ({
+      ...prev,
+      [integrationName]: !prev[integrationName]
+    }));
   };
 
   const handleManualInject = async (e) => {
@@ -522,6 +532,16 @@ function App() {
           <h3 style={{ fontSize: '1.125rem' }}>Add New Source</h3>
         </div>
         <form onSubmit={handleAddUrl} style={{ padding: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Integration Name</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="e.g. Shopify"
+              value={newUrl.integration}
+              onChange={e => setNewUrl({ ...newUrl, integration: e.target.value })}
+            />
+          </div>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Source Name</label>
             <input
@@ -588,32 +608,59 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {monitoredUrls.map((s, i) => (
-                <tr key={s.id || i}>
-                  <td style={{ fontWeight: '500' }}>{s.name}</td>
-                  <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--accent-cyan)' }}>{s.category}</span></td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.url}</td>
-                  <td><span className="badge badge-green">Monitoring</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className="btn"
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-cyan)' }}
-                        onClick={() => handleEditUrl(s)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn"
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-red)' }}
-                        onClick={() => handleDeleteUrl(s.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {Object.keys(monitoredUrls.reduce((acc, s) => {
+                const key = s.integration || s.name.split(' ')[0] || 'Ungrouped';
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(s);
+                return acc;
+              }, {})).map((integrationName) => {
+                const groupedUrls = monitoredUrls.reduce((acc, s) => {
+                  const key = s.integration || s.name.split(' ')[0] || 'Ungrouped';
+                  if (!acc[key]) acc[key] = [];
+                  acc[key].push(s);
+                  return acc;
+                }, {});
+                return (
+                <React.Fragment key={integrationName}>
+                  <tr 
+                    style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }} 
+                    onClick={() => toggleIntegration(integrationName)}
+                  >
+                    <td colSpan="5" style={{ fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>
+                      {expandedIntegrations[integrationName] ? '▼' : '▶'} Integration: {integrationName}
+                      <span className="badge" style={{ marginLeft: '1rem', background: 'rgba(255,255,255,0.05)' }}>
+                        {groupedUrls[integrationName].length} Sources
+                      </span>
+                    </td>
+                  </tr>
+                  {expandedIntegrations[integrationName] && groupedUrls[integrationName].map((s, i) => (
+                    <tr key={s.id || i}>
+                      <td style={{ fontWeight: '500', paddingLeft: '2rem' }}>↳ {s.name}</td>
+                      <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--accent-cyan)' }}>{s.category}</span></td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.url}</td>
+                      <td><span className="badge badge-green">Monitoring</span></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            className="btn"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-cyan)' }}
+                            onClick={() => handleEditUrl(s)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--accent-red)' }}
+                            onClick={() => handleDeleteUrl(s.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              )})}
               {monitoredUrls.length === 0 && (
                 <tr>
                   <td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
@@ -635,6 +682,15 @@ function App() {
           <div className="modal-content">
             <h2 style={{ marginBottom: '1.5rem' }}>Edit Source</h2>
             <form onSubmit={handleUpdateUrl}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Integration Name</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editForm.integration}
+                  onChange={e => setEditForm({ ...editForm, integration: e.target.value })}
+                />
+              </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Source Name</label>
                 <input
