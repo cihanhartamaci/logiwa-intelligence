@@ -122,7 +122,8 @@ def job():
                 scopes = [
                     'Orders API', 'Create Order', 'Update Order', 'Cancel Order',
                     'Products API', 'Product listing', 'Variant', 'SKU',
-                    'Inventory API', 'Stock update', 'Fulfillment', 'Shipment notification'
+                    'Inventory API', 'Stock update', 'Fulfillment', 'Shipment notification',
+                    'Receipt', 'Purchase Order', 'Receiving'
                 ]
             elif category == 'Carriers':
                 # Focus: shipping label lifecycle endpoints
