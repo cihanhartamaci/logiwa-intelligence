@@ -114,15 +114,29 @@ def job():
         category = update.get('category', 'General')
         scopes = update.get('scopes')
         
-        # If no explicit scopes, apply category-specific heuristics
+        # If no explicit scopes, apply category-specific strict scope rules.
+        # These map to the exact API areas Logiwa's integration team cares about.
         if not scopes:
-            cat_lower = category.lower()
-            if 'marketplace' in cat_lower or 'erp' in cat_lower:
-                scopes = ['Orders API', 'Products API', 'Inventory API changes']
-            elif 'carrier' in cat_lower or 'shipping' in cat_lower:
-                scopes = ['Label creation', 'Void/Refund Label', 'Get Rate endpoints']
-            # If General, scopes remain empty and it will fall back to general ecommerce rules
-            
+            if category in ('Marketplaces', 'Marketplace', 'ERPs'):
+                # Focus: core WMS-facing commerce endpoints
+                scopes = [
+                    'Orders API', 'Create Order', 'Update Order', 'Cancel Order',
+                    'Products API', 'Product listing', 'Variant', 'SKU',
+                    'Inventory API', 'Stock update', 'Fulfillment', 'Shipment notification'
+                ]
+            elif category == 'Carriers':
+                # Focus: shipping label lifecycle endpoints
+                scopes = [
+                    'Create Label', 'Void Label', 'Refund Label',
+                    'Get Rate', 'Rate Shop', 'Tracking', 'Pickup',
+                    'Manifest', 'End of Day', 'Address Validation'
+                ]
+            elif category == 'General':
+                # Focus: authentication, webhooks, API versioning — infra-level changes
+                scopes = [
+                    'Authentication', 'OAuth', 'API Key', 'Webhook',
+                    'Rate Limit', 'API versioning', 'Deprecation', 'Breaking change'
+                ]
         logger.info(f"Analyzing update from: {update['source']} (Category: {category})")
         analysis = analyzer.analyze(
             update['content'], 
