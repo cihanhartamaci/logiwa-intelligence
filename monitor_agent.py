@@ -116,10 +116,12 @@ def job():
         
         # If no explicit scopes, apply category-specific heuristics
         if not scopes:
-            if category == 'Marketplace' or category == 'ERPs':
+            cat_lower = category.lower()
+            if 'marketplace' in cat_lower or 'erp' in cat_lower:
                 scopes = ['Orders API', 'Products API', 'Inventory API changes']
-            elif category == 'Carriers':
+            elif 'carrier' in cat_lower or 'shipping' in cat_lower:
                 scopes = ['Label creation', 'Void/Refund Label', 'Get Rate endpoints']
+            # If General, scopes remain empty and it will fall back to general ecommerce rules
             
         logger.info(f"Analyzing update from: {update['source']} (Category: {category})")
         analysis = analyzer.analyze(
