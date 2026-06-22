@@ -259,6 +259,14 @@ function App() {
     }
   };
 
+  const formatGitLabError = (err) => {
+    if (!err || typeof err === 'string') return err || 'Unknown error';
+    if (err.message) return err.message;
+    if (err.error) return err.error;
+    if (err.errors) return JSON.stringify(err.errors);
+    return JSON.stringify(err);
+  };
+
   const runCycle = async () => {
     if (effectiveCiProvider === 'gitlab') {
       if (!gitlabPat) {
@@ -283,10 +291,7 @@ function App() {
             'PRIVATE-TOKEN': gitlabPat,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            ref: 'main',
-            variables: [{ key: 'INTELLIGENCE_CYCLE', value: 'true' }],
-          }),
+          body: JSON.stringify({ ref: 'main' }),
         });
 
         if (response.ok) {
@@ -296,7 +301,7 @@ function App() {
         } else {
           const err = await response.json().catch(() => ({}));
           setCycleStatus('error');
-          alert(`Failed to trigger GitLab pipeline.\nStatus: ${response.status}\n${err.message || err.error || ''}\n\nToken needs api scope and project access.`);
+          alert(`Failed to trigger GitLab pipeline.\nStatus: ${response.status}\n${formatGitLabError(err)}\n\nCheck token has api scope and Developer+ project access.`);
         }
       } catch (e) {
         setCycleStatus('error');

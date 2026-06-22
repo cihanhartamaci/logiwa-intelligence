@@ -25,8 +25,8 @@ monitor:
   image: python:3.10
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "api"
     - if: $CI_PIPELINE_SOURCE == "web" && $INTELLIGENCE_CYCLE == "true"
-    - if: $CI_PIPELINE_SOURCE == "api" && $INTELLIGENCE_CYCLE == "true"
   script:
     - pip install --quiet -r requirements.txt
     - python monitor_agent.py
