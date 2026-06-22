@@ -26,4 +26,5 @@ serviceAccountKey.json
 # Project Stats
 # data/state.json
 intelligence_bot.log
+gitlab-variables-export.json
 

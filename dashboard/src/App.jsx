@@ -42,6 +42,11 @@ function App() {
   const [ciProvider, setCiProvider] = useState(() =>
     typeof window !== 'undefined' && window.location.hostname.includes('gitlab.io') ? 'gitlab' : 'github'
   );
+
+  const effectiveCiProvider =
+    typeof window !== 'undefined' && window.location.hostname.includes('gitlab.io')
+      ? 'gitlab'
+      : ciProvider;
   const [frequency, setFrequency] = useState('Daily');
   const [isPaused, setIsPaused] = useState(false);
   const [cycleStatus, setCycleStatus] = useState(null);
@@ -103,7 +108,7 @@ function App() {
         if (data.gh_repo) setGithubRepo(data.gh_repo);
         if (data.gl_pat) setGitlabPat(data.gl_pat);
         if (data.gl_project) setGitlabProject(data.gl_project);
-        if (data.ci_provider) {
+        if (data.ci_provider && !window.location.hostname.includes('gitlab.io')) {
           setCiProvider(data.ci_provider);
         } else if (window.location.hostname.includes('gitlab.io')) {
           setCiProvider('gitlab');
@@ -255,7 +260,7 @@ function App() {
   };
 
   const runCycle = async () => {
-    if (ciProvider === 'gitlab') {
+    if (effectiveCiProvider === 'gitlab') {
       if (!gitlabPat) {
         alert("Please set your GitLab Access Token in Settings first!");
         setShowSettings(true);
@@ -344,7 +349,7 @@ function App() {
   };
 
   const toggleWorkflow = async (pause) => {
-    if (ciProvider === 'gitlab') {
+    if (effectiveCiProvider === 'gitlab') {
       try {
         await setDoc(doc(db, "config", "system"), { is_paused: pause }, { merge: true });
         setIsPaused(pause);
@@ -393,7 +398,7 @@ function App() {
     try {
       await setDoc(doc(db, "config", "system"), {
         frequency,
-        ci_provider: ciProvider,
+        ci_provider: effectiveCiProvider,
         gh_pat: githubPat,
         gh_repo: githubRepo,
         gl_pat: gitlabPat,
@@ -529,7 +534,7 @@ function App() {
             <p>Last run: 14 mins ago</p>
           </div>
           <div className="card-footer">
-            <p>{ciProvider === 'gitlab' ? 'GitLab CI Status' : 'GitHub Actions Status'}: ✅ Success</p>
+            <p>{effectiveCiProvider === 'gitlab' ? 'GitLab CI Status' : 'GitHub Actions Status'}: ✅ Success</p>
           </div>
         </div>
 
@@ -895,7 +900,7 @@ function App() {
         </div>
         <div className="card-footer">
           <a
-            href={ciProvider === 'gitlab'
+            href={effectiveCiProvider === 'gitlab'
               ? 'https://gitlab.com/logiwa-tech/integrations/integration-newsletter/-/pipelines'
               : 'https://github.com/cihanhartamaci/logiwa-intelligence/actions'}
             target="_blank"
@@ -972,13 +977,17 @@ function App() {
               </span>
             </div>
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>CI/CD Provider</label>
-              <select className="input-field" value={ciProvider} onChange={e => setCiProvider(e.target.value)}>
-                <option value="gitlab">GitLab CI</option>
-                <option value="github">GitHub Actions</option>
-              </select>
+              {!window.location.hostname.includes('gitlab.io') && (
+                <>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>CI/CD Provider</label>
+                  <select className="input-field" value={ciProvider} onChange={e => setCiProvider(e.target.value)}>
+                    <option value="gitlab">GitLab CI</option>
+                    <option value="github">GitHub Actions</option>
+                  </select>
+                </>
+              )}
             </div>
-            {ciProvider === 'gitlab' ? (
+            {effectiveCiProvider === 'gitlab' ? (
               <>
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Access Token</label>
