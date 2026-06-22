@@ -38,7 +38,9 @@ function App() {
   const [githubPat, setGithubPat] = useState('');
   const [githubRepo, setGithubRepo] = useState('cihanhartamaci/logiwa-intelligence');
   const [gitlabPat, setGitlabPat] = useState('');
-  const [gitlabProject, setGitlabProject] = useState('logiwa-tech/integrations/integration-newsletter');
+  const [gitlabTriggerToken, setGitlabTriggerToken] = useState('');
+  const [gitlabProject, setGitlabProject] = useState('83638649');
+  const [gitlabRef, setGitlabRef] = useState('main');
   const [ciProvider, setCiProvider] = useState(() =>
     typeof window !== 'undefined' && window.location.hostname.includes('gitlab.io') ? 'gitlab' : 'github'
   );
@@ -107,7 +109,9 @@ function App() {
         if (data.gh_pat) setGithubPat(data.gh_pat);
         if (data.gh_repo) setGithubRepo(data.gh_repo);
         if (data.gl_pat) setGitlabPat(data.gl_pat);
+        if (data.gl_trigger_token) setGitlabTriggerToken(data.gl_trigger_token);
         if (data.gl_project) setGitlabProject(data.gl_project);
+        if (data.gl_ref) setGitlabRef(data.gl_ref);
         if (data.ci_provider && !window.location.hostname.includes('gitlab.io')) {
           setCiProvider(data.ci_provider);
         } else if (window.location.hostname.includes('gitlab.io')) {
@@ -261,7 +265,10 @@ function App() {
 
   const formatGitLabError = (err) => {
     if (!err || typeof err === 'string') return err || 'Unknown error';
-    if (err.message) return err.message;
+    if (Array.isArray(err.base)) return err.base.join(', ');
+    if (err.message?.base) return err.message.base.join(', ');
+    if (typeof err.message === 'string') return err.message;
+    if (typeof err.message === 'object') return JSON.stringify(err.message);
     if (err.error) return err.error;
     if (err.errors) return JSON.stringify(err.errors);
     return JSON.stringify(err);
@@ -269,29 +276,36 @@ function App() {
 
   const runCycle = async () => {
     if (effectiveCiProvider === 'gitlab') {
-      if (!gitlabPat) {
-        alert("Please set your GitLab Access Token in Settings first!");
+      if (!gitlabTriggerToken && !gitlabPat) {
+        alert("Please set a GitLab Pipeline Trigger Token in Settings first!");
         setShowSettings(true);
         return;
       }
       if (!gitlabProject) {
-        alert("Please set your GitLab project path in Settings.");
+        alert("Please set your GitLab project ID or path in Settings.");
         setShowSettings(true);
         return;
       }
 
       const encodedProject = encodeURIComponent(gitlabProject);
-      const apiUrl = `https://gitlab.com/api/v4/projects/${encodedProject}/pipeline`;
+      const useTriggerToken = Boolean(gitlabTriggerToken);
+      const apiUrl = useTriggerToken
+        ? `https://gitlab.com/api/v4/projects/${encodedProject}/trigger/pipeline`
+        : `https://gitlab.com/api/v4/projects/${encodedProject}/pipeline`;
 
       setCycleStatus('running');
       try {
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: {
-            'PRIVATE-TOKEN': gitlabPat,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ ref: 'main' }),
+          headers: useTriggerToken
+            ? { 'Content-Type': 'application/x-www-form-urlencoded' }
+            : {
+              'PRIVATE-TOKEN': gitlabPat,
+              'Content-Type': 'application/json',
+            },
+          body: useTriggerToken
+            ? new URLSearchParams({ token: gitlabTriggerToken, ref: gitlabRef }).toString()
+            : JSON.stringify({ ref: gitlabRef }),
         });
 
         if (response.ok) {
@@ -301,7 +315,7 @@ function App() {
         } else {
           const err = await response.json().catch(() => ({}));
           setCycleStatus('error');
-          alert(`Failed to trigger GitLab pipeline.\nStatus: ${response.status}\n${formatGitLabError(err)}\n\nCheck token has api scope and Developer+ project access.`);
+          alert(`Failed to trigger GitLab pipeline.\nStatus: ${response.status}\n${formatGitLabError(err)}\n\nUse a Pipeline Trigger Token from Settings → CI/CD → Pipeline triggers.`);
         }
       } catch (e) {
         setCycleStatus('error');
@@ -407,7 +421,9 @@ function App() {
         gh_pat: githubPat,
         gh_repo: githubRepo,
         gl_pat: gitlabPat,
+        gl_trigger_token: gitlabTriggerToken,
         gl_project: gitlabProject,
+        gl_ref: gitlabRef,
         intelligence_freshness: intelligenceFreshness,
         manual_intelligence_freshness: manualIntelligenceFreshness
       }, { merge: true });
@@ -995,7 +1011,43 @@ function App() {
             {effectiveCiProvider === 'gitlab' ? (
               <>
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Access Token</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Pipeline Trigger Token</label>
+                  <input
+                    type="password"
+                    className="input-field"
+                    placeholder="glptt-xxxxxxxxxxxx"
+                    value={gitlabTriggerToken}
+                    onChange={e => setGitlabTriggerToken(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    GitLab proje → <strong>Settings → CI/CD → Pipeline triggers</strong> → Add trigger → token kopyala
+                  </p>
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Project ID</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="83638649"
+                    value={gitlabProject}
+                    onChange={e => setGitlabProject(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    Settings → General → Project ID (bu proje: <code>83638649</code>)
+                  </p>
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Branch</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="main"
+                    value={gitlabRef}
+                    onChange={e => setGitlabRef(e.target.value)}
+                  />
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Access Token (opsiyonel yedek)</label>
                   <input
                     type="password"
                     className="input-field"
@@ -1003,22 +1055,6 @@ function App() {
                     value={gitlabPat}
                     onChange={e => setGitlabPat(e.target.value)}
                   />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                    💡 <strong>Required:</strong> Needs <code>api</code> scope to trigger pipelines.
-                  </p>
-                </div>
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Project Path</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="group/subgroup/project"
-                    value={gitlabProject}
-                    onChange={e => setGitlabProject(e.target.value)}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                    Format: <code>logiwa-tech/integrations/integration-newsletter</code>
-                  </p>
                 </div>
               </>
             ) : (
@@ -1266,7 +1302,7 @@ function App() {
         </ul>
         <div className="sidebar-footer">
           <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.0-secure</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.1-gitlab</p>
         </div>
       </aside>
 
