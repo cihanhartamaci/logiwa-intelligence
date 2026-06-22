@@ -45,7 +45,10 @@ def job():
     frequency = sys_config.get('frequency', 'Daily')
     last_run = sys_config.get('last_run')
     # Manual run bypass (triggered via Dashboard)
-    event_name = os.getenv("GITHUB_EVENT_NAME", "local")
+    pipeline_source = os.getenv("CI_PIPELINE_SOURCE", "")
+    event_name = os.getenv("GITHUB_EVENT_NAME") or (
+        "workflow_dispatch" if pipeline_source == "web" else "local"
+    )
     is_manual = event_name == "workflow_dispatch"
     
     # Select freshness based on run type
@@ -257,9 +260,9 @@ if __name__ == "__main__":
     if not os.getenv("OPENAI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
         logger.warning("No LLM API Key found! Analysis will be failing.")
 
-    # Check if running in GitHub Actions (Single Run)
-    if os.getenv("GITHUB_ACTIONS") == "true":
-        logger.info("Detected GitHub Actions environment. Running one-time cycle...")
+    # Check if running in CI (GitHub Actions or GitLab CI) — single run, no scheduler
+    if os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("GITLAB_CI") == "true":
+        logger.info("Detected CI environment. Running one-time cycle...")
         job()
         # Optional: Run reporter if it's Friday in UTC? 
         # For now, just run the main job.
