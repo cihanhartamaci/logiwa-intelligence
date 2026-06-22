@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/integrations/integration-newsletter/',
+  // GitLab unique Pages domain serves from root (e.g. integration-newsletter-xxxx.gitlab.io)
+  base: '/',
 })
 
