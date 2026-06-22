@@ -37,6 +37,11 @@ function App() {
   const [intelReports, setIntelReports] = useState([]);
   const [githubPat, setGithubPat] = useState('');
   const [githubRepo, setGithubRepo] = useState('cihanhartamaci/logiwa-intelligence');
+  const [gitlabPat, setGitlabPat] = useState('');
+  const [gitlabProject, setGitlabProject] = useState('logiwa-tech/integrations/integration-newsletter');
+  const [ciProvider, setCiProvider] = useState(() =>
+    typeof window !== 'undefined' && window.location.hostname.includes('gitlab.io') ? 'gitlab' : 'github'
+  );
   const [frequency, setFrequency] = useState('Daily');
   const [isPaused, setIsPaused] = useState(false);
   const [cycleStatus, setCycleStatus] = useState(null);
@@ -96,6 +101,13 @@ function App() {
         if (data.frequency) setFrequency(data.frequency);
         if (data.gh_pat) setGithubPat(data.gh_pat);
         if (data.gh_repo) setGithubRepo(data.gh_repo);
+        if (data.gl_pat) setGitlabPat(data.gl_pat);
+        if (data.gl_project) setGitlabProject(data.gl_project);
+        if (data.ci_provider) {
+          setCiProvider(data.ci_provider);
+        } else if (window.location.hostname.includes('gitlab.io')) {
+          setCiProvider('gitlab');
+        }
         if (data.intelligence_freshness) setIntelligenceFreshness(data.intelligence_freshness);
         if (data.manual_intelligence_freshness) setManualIntelligenceFreshness(data.manual_intelligence_freshness);
         setSyncStatus('Synced');
@@ -243,6 +255,52 @@ function App() {
   };
 
   const runCycle = async () => {
+    if (ciProvider === 'gitlab') {
+      if (!gitlabPat) {
+        alert("Please set your GitLab Access Token in Settings first!");
+        setShowSettings(true);
+        return;
+      }
+      if (!gitlabProject) {
+        alert("Please set your GitLab project path in Settings.");
+        setShowSettings(true);
+        return;
+      }
+
+      const encodedProject = encodeURIComponent(gitlabProject);
+      const apiUrl = `https://gitlab.com/api/v4/projects/${encodedProject}/pipeline`;
+
+      setCycleStatus('running');
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'PRIVATE-TOKEN': gitlabPat,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ref: 'main',
+            variables: [{ key: 'INTELLIGENCE_CYCLE', value: 'true' }],
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCycleStatus('success');
+          alert(`Intelligence Cycle triggered on GitLab CI!\n\nPipeline #${data.id} started. Check GitLab → Build → Pipelines for logs.`);
+        } else {
+          const err = await response.json().catch(() => ({}));
+          setCycleStatus('error');
+          alert(`Failed to trigger GitLab pipeline.\nStatus: ${response.status}\n${err.message || err.error || ''}\n\nToken needs api scope and project access.`);
+        }
+      } catch (e) {
+        setCycleStatus('error');
+        alert('Network error: ' + e.message);
+      }
+      setTimeout(() => setCycleStatus(null), 5000);
+      return;
+    }
+
     if (!githubPat) {
       alert("Please set your GitHub Personal Access Token in Settings first!");
       setShowSettings(true);
@@ -286,6 +344,17 @@ function App() {
   };
 
   const toggleWorkflow = async (pause) => {
+    if (ciProvider === 'gitlab') {
+      try {
+        await setDoc(doc(db, "config", "system"), { is_paused: pause }, { merge: true });
+        setIsPaused(pause);
+        alert(`Workflow ${pause ? 'paused' : 'resumed'} successfully!`);
+      } catch (e) {
+        alert('Error toggling workflow: ' + e.message);
+      }
+      return;
+    }
+
     if (!githubPat || !githubRepo) {
       alert("GitHub PAT and Repo must be set to pause/resume workflows.");
       return;
@@ -324,8 +393,11 @@ function App() {
     try {
       await setDoc(doc(db, "config", "system"), {
         frequency,
+        ci_provider: ciProvider,
         gh_pat: githubPat,
         gh_repo: githubRepo,
+        gl_pat: gitlabPat,
+        gl_project: gitlabProject,
         intelligence_freshness: intelligenceFreshness,
         manual_intelligence_freshness: manualIntelligenceFreshness
       }, { merge: true });
@@ -457,7 +529,7 @@ function App() {
             <p>Last run: 14 mins ago</p>
           </div>
           <div className="card-footer">
-            <p>GitHub Actions Status: ✅ Success</p>
+            <p>{ciProvider === 'gitlab' ? 'GitLab CI Status' : 'GitHub Actions Status'}: ✅ Success</p>
           </div>
         </div>
 
@@ -822,7 +894,13 @@ function App() {
           <p style={{ color: 'var(--accent-emerald)', marginTop: '0.5rem', fontWeight: 'bold' }}>Status: Enabled</p>
         </div>
         <div className="card-footer">
-          <a href="https://github.com/cihanhartamaci/logiwa-intelligence/actions" target="_blank" rel="noopener noreferrer">
+          <a
+            href={ciProvider === 'gitlab'
+              ? 'https://gitlab.com/logiwa-tech/integrations/integration-newsletter/-/pipelines'
+              : 'https://github.com/cihanhartamaci/logiwa-intelligence/actions'}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <button className="btn">View Logs</button>
           </a>
         </div>
@@ -894,31 +972,71 @@ function App() {
               </span>
             </div>
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Personal Access Token (PAT)</label>
-              <input
-                type="password"
-                className="input-field"
-                placeholder="ghp_xxxxxxxxxxxx"
-                value={githubPat}
-                onChange={e => setGithubPat(e.target.value)}
-              />
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                💡 <strong>Required:</strong> Needs <code>repo</code> and <code>workflow</code> scopes to update sources and trigger manual runs.
-              </p>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>CI/CD Provider</label>
+              <select className="input-field" value={ciProvider} onChange={e => setCiProvider(e.target.value)}>
+                <option value="gitlab">GitLab CI</option>
+                <option value="github">GitHub Actions</option>
+              </select>
             </div>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Repository</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="username/repo-name"
-                value={githubRepo}
-                onChange={e => setGithubRepo(e.target.value)}
-              />
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                Format: <code>owner/repository</code> (e.g. cihanhartamaci/logiwa-intelligence)
-              </p>
-            </div>
+            {ciProvider === 'gitlab' ? (
+              <>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Access Token</label>
+                  <input
+                    type="password"
+                    className="input-field"
+                    placeholder="glpat-xxxxxxxxxxxx"
+                    value={gitlabPat}
+                    onChange={e => setGitlabPat(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    💡 <strong>Required:</strong> Needs <code>api</code> scope to trigger pipelines.
+                  </p>
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitLab Project Path</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="group/subgroup/project"
+                    value={gitlabProject}
+                    onChange={e => setGitlabProject(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    Format: <code>logiwa-tech/integrations/integration-newsletter</code>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Personal Access Token (PAT)</label>
+                  <input
+                    type="password"
+                    className="input-field"
+                    placeholder="ghp_xxxxxxxxxxxx"
+                    value={githubPat}
+                    onChange={e => setGithubPat(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    💡 <strong>Required:</strong> Needs <code>repo</code> and <code>workflow</code> scopes to update sources and trigger manual runs.
+                  </p>
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>GitHub Repository</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="username/repo-name"
+                    value={githubRepo}
+                    onChange={e => setGithubRepo(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    Format: <code>owner/repository</code> (e.g. cihanhartamaci/logiwa-intelligence)
+                  </p>
+                </div>
+              </>
+            )}
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Monitoring Frequency</label>
               <select className="input-field" value={frequency} onChange={e => setFrequency(e.target.value)}>
@@ -1159,7 +1277,7 @@ function App() {
             >
               {cycleStatus === 'running' ? 'Triggering...' :
                 cycleStatus === 'success' ? 'Triggered!' :
-                  cycleStatus === 'error' ? 'Failed - Check PAT' :
+                  cycleStatus === 'error' ? 'Failed - Check Token' :
                     'Run Intelligence Cycle'}
             </button>
           </div>

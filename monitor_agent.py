@@ -47,7 +47,9 @@ def job():
     # Manual run bypass (triggered via Dashboard)
     pipeline_source = os.getenv("CI_PIPELINE_SOURCE", "")
     event_name = os.getenv("GITHUB_EVENT_NAME") or (
-        "workflow_dispatch" if pipeline_source == "web" else "local"
+        "workflow_dispatch"
+        if pipeline_source == "web" or os.getenv("INTELLIGENCE_CYCLE") == "true"
+        else "local"
     )
     is_manual = event_name == "workflow_dispatch"
     
