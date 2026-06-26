@@ -204,32 +204,15 @@ function App() {
     return storedStatus || 'Ready';
   };
 
-  const hasRecommendedAction = (action) => {
-    if (!action) return false;
-    const normalized = action.trim().toLowerCase();
-    return normalized !== 'monitoring' && normalized !== 'n/a';
-  };
-
   const readinessData = monitoredUrls.map(url => {
     const rawDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
     const isStale = rawDate !== 'Pending Analysis' && !isWithinReviewWindow(rawDate);
     const storedStatus = url.last_status || 'Ready';
     const storedAction = url.next_action || 'Monitoring';
 
-    let status;
-    if (isStale) {
-      status = 'Ready';
-    } else if (storedStatus === 'Action Required') {
-      status = 'Action Required';
-    } else if (hasRecommendedAction(storedAction)) {
-      status = 'Needs Review';
-    } else {
-      status = resolveDisplayStatus(storedStatus, rawDate);
-    }
-
     return {
       integration: url.name,
-      status,
+      status: isStale ? 'Ready' : resolveDisplayStatus(storedStatus, rawDate),
       impact: isStale ? 'No Changes' : (url.last_impact || 'No Changes'),
       action: isStale ? 'Monitoring' : storedAction,
       last_date: isStale ? 'Pending Analysis' : rawDate,
@@ -1384,7 +1367,7 @@ function App() {
         </ul>
         <div className="sidebar-footer">
           <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.3-gitlab</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.4-gitlab</p>
         </div>
       </aside>
 
