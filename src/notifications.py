@@ -43,6 +43,18 @@ class Notifier:
                     "title": alert[ 'type'],
                     "title_link": alert_url,
                     "text": f"*{alert['impact_level']} Impact*\n{alert['summary']}",
+                    "fields": [
+                        {
+                            "title": "Release Date",
+                            "value": alert.get("release_date", "N/A"),
+                            "short": True,
+                        },
+                        {
+                            "title": "Recommended Action",
+                            "value": (alert.get("action_required") or "Monitoring")[:700],
+                            "short": False,
+                        },
+                    ],
                     "footer": "Logiwa AI Monitor",
                     "footer_icon": "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png"
                 }

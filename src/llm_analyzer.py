@@ -31,7 +31,7 @@ class LLMAnalyzer:
         
     def analyze(self, content, base_url, freshness=30, scopes=None):
         import datetime
-        from src.date_utils import freshness_to_days, is_within_review_window
+        from src.date_utils import freshness_to_days, is_within_review_window, resolve_release_date
 
         freshness_days = freshness_to_days(freshness)
         today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -65,7 +65,7 @@ class LLMAnalyzer:
         4. 'action_required': Specific technical steps the engineering team must take (e.g. "Migrate to OAuth 2.0", "Update payload schema").
         5. 'impact_level': High (Breaking), Medium (New Risk/Capability), Low (Info).
         6. 'type': Breaking Change, New Capability, Maintenance, Info.
-        7. 'release_date': The date of the update/release (e.g. "2026-02-20"). If not found, use N/A.
+        7. 'release_date': The date of THE SPECIFIC update described in action_required (YYYY-MM-DD). It must match that same change, not an older changelog entry on the page.
         8. 'is_relevant': Boolean. Does it pass ALL FILTERING RULES above?
         9. 'exact_quote': A unique, short string (5-10 words) quoted EXACTLY from the text that pinpoints this update. Do not modify the text, copy it exactly.
         10. 'source_url': The specific URL where this update was found. If it was found under a "--- SUB-DETAIL FROM [URL] ---" section, provide that [URL]. Otherwise, provide the BASE URL: {base_url}
@@ -193,6 +193,8 @@ class LLMAnalyzer:
                  
             try:
                 result = json.loads(cleaned_text)
+                if result.get("is_relevant"):
+                    result["release_date"] = resolve_release_date(result)
                 if result.get("is_relevant") and not is_within_review_window(
                     result.get("release_date"), freshness_days
                 ):

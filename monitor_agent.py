@@ -5,7 +5,7 @@ import yaml
 import schedule
 import urllib.parse
 from dotenv import load_dotenv
-from src.date_utils import freshness_to_days, is_within_review_window
+from src.date_utils import freshness_to_days, is_within_review_window, resolve_release_date
 from src.status_utils import normalize_impact_level, resolve_integration_status
 from src.fetcher import Fetcher
 from src.llm_analyzer import LLMAnalyzer
@@ -155,10 +155,10 @@ def job():
         )
         
         if analysis.get('is_relevant'):
-            release_date = analysis.get('release_date', 'N/A')
-            if not is_within_review_window(release_date, freshness_days):
+            resolved_release_date = resolve_release_date(analysis)
+            if not is_within_review_window(resolved_release_date, freshness_days):
                 logger.info(
-                    f"Update from {update['source']} ({release_date}) is outside "
+                    f"Update from {update['source']} ({resolved_release_date}) is outside "
                     f"{freshness_days}-day window; skipping alert/status update."
                 )
                 if firebase and update.get('new_hash'):
@@ -178,7 +178,7 @@ def job():
                 "action_required": analysis.get('action_required', 'N/A'),
                 "impact_level": analysis['impact_level'],
                 "type": analysis['type'],
-                "release_date": analysis.get('release_date', 'N/A'),
+                "release_date": resolved_release_date,
                 "exact_quote": analysis.get('exact_quote', '')
             }
             alerts.append(alert)
@@ -193,7 +193,7 @@ def job():
                     "last_impact": analysis['type'],
                     "last_impact_level": impact_level,
                     "next_action": analysis.get('action_required', "Monitoring"),
-                    "last_date": analysis.get('release_date', 'N/A')
+                    "last_date": resolved_release_date,
                 }
                 logger.info(f"Updating Firestore status for {update['source']}...")
                 if update.get('is_manual_injection'):
@@ -208,7 +208,7 @@ def job():
                 deep_link = f"{alert['url']}#:~:text={urllib.parse.quote(alert['exact_quote'])}"
             
             report_content += f"## {update['source']}\n"
-            report_content += f"**Release Date:** {analysis.get('release_date', 'N/A')} | **Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n"
+            report_content += f"**Release Date:** {resolved_release_date} | **Type:** {analysis['type']} | **Impact:** {analysis['impact_level']}\n"
             report_content += f"**Source:** [View Documentation]({deep_link})\n\n"
             report_content += f"### Summary\n{analysis['summary']}\n\n"
             report_content += "### Technical Details\n"

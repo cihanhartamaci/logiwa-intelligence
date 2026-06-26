@@ -177,6 +177,40 @@ function App() {
 
   const REVIEW_WINDOW_DAYS = 30;
 
+  const extractDatesFromText = (text) => {
+    if (!text) return [];
+    const found = [];
+    const value = String(text);
+
+    for (const match of value.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)) {
+      found.push(match[1]);
+    }
+    for (const match of value.matchAll(/\b(20\d{2})-(0[1-9]|1[0-2])\b(?!-\d{2})/g)) {
+      found.push(`${match[1]}-${match[2]}-01`);
+    }
+    for (const match of value.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/gi)) {
+      const parsed = new Date(`${match[1]} ${match[2]}, ${match[3]}`);
+      if (!Number.isNaN(parsed.getTime())) found.push(parsed.toISOString().slice(0, 10));
+    }
+    for (const match of value.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/gi)) {
+      const parsed = new Date(`${match[1]} 1, ${match[2]}`);
+      if (!Number.isNaN(parsed.getTime())) found.push(parsed.toISOString().slice(0, 10));
+    }
+    return [...new Set(found)];
+  };
+
+  const resolveDisplayReleaseDate = (url, storedDate) => {
+    const actionDates = extractDatesFromText(url.next_action || '')
+      .map((token) => ({ token, parsed: parseReleaseDate(token) }))
+      .filter((item) => item.parsed);
+
+    if (actionDates.length > 0) {
+      return actionDates.sort((a, b) => b.parsed - a.parsed)[0].token;
+    }
+
+    return storedDate;
+  };
+
   const parseReleaseDate = (dateStr) => {
     if (!dateStr || dateStr === 'N/A' || dateStr === 'Pending Analysis') return null;
     const isoMatch = String(dateStr).match(/(\d{4}-\d{2}-\d{2})/);
@@ -241,17 +275,20 @@ function App() {
   };
 
   const readinessData = monitoredUrls.map(url => {
-    const rawDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
-    const isStale = rawDate !== 'Pending Analysis' && !isWithinReviewWindow(rawDate);
+    const storedDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
+    const effectiveDate = storedDate === 'Pending Analysis'
+      ? storedDate
+      : resolveDisplayReleaseDate(url, storedDate);
+    const isStale = effectiveDate !== 'Pending Analysis' && !isWithinReviewWindow(effectiveDate);
     const storedAction = url.next_action || 'Monitoring';
-    const computedStatus = resolveReadinessStatus(url, rawDate, isStale);
+    const computedStatus = resolveReadinessStatus(url, effectiveDate, isStale);
 
     return {
       integration: url.name,
-      status: resolveDisplayStatus(computedStatus, rawDate),
+      status: resolveDisplayStatus(computedStatus, effectiveDate),
       impact: isStale ? 'No Changes' : (url.last_impact || 'No Changes'),
       action: isStale ? 'Monitoring' : storedAction,
-      last_date: isStale ? 'Pending Analysis' : rawDate,
+      last_date: isStale ? 'Pending Analysis' : effectiveDate,
       isStale
     };
   });
@@ -1403,7 +1440,7 @@ function App() {
         </ul>
         <div className="sidebar-footer">
           <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.5-gitlab</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.6-gitlab</p>
         </div>
       </aside>
 
