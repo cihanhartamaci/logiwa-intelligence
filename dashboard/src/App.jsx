@@ -180,8 +180,44 @@ function App() {
   const parseReleaseDate = (dateStr) => {
     if (!dateStr || dateStr === 'N/A' || dateStr === 'Pending Analysis') return null;
     const isoMatch = String(dateStr).match(/(\d{4}-\d{2}-\d{2})/);
-    const parsed = new Date(isoMatch ? isoMatch[1] : dateStr);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    if (!isoMatch) return null;
+    const [year, month, day] = isoMatch[1].split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  const hasActionableRecommendation = (action) => {
+    if (!action) return false;
+    const normalized = action.trim().toLowerCase();
+    return normalized !== 'monitoring' && normalized !== 'n/a' && normalized !== 'none';
+  };
+
+  const resolveReadinessStatus = (url, rawDate, isStale) => {
+    if (isStale) return 'Ready';
+
+    const storedStatus = url.last_status || 'Ready';
+    const impactType = (url.last_impact || '').toLowerCase();
+    const impactLevel = (url.last_impact_level || '').toLowerCase();
+    const action = url.next_action || 'Monitoring';
+    const hasDate = rawDate !== 'Pending Analysis';
+    const hasAction = hasActionableRecommendation(action);
+
+    if (storedStatus === 'Action Required') return 'Action Required';
+    if (storedStatus === 'Needs Review') return 'Needs Review';
+
+    if (hasDate && hasAction) {
+      if (impactLevel.startsWith('high')) return 'Action Required';
+      if (impactType.includes('breaking')) return 'Needs Review';
+      if (
+        impactLevel.startsWith('medium') ||
+        impactType.includes('maintenance') ||
+        impactType.includes('new capability') ||
+        impactType.includes('deprecation')
+      ) {
+        return 'Needs Review';
+      }
+    }
+
+    return storedStatus;
   };
 
   const isWithinReviewWindow = (dateStr, windowDays = REVIEW_WINDOW_DAYS) => {
@@ -207,12 +243,12 @@ function App() {
   const readinessData = monitoredUrls.map(url => {
     const rawDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
     const isStale = rawDate !== 'Pending Analysis' && !isWithinReviewWindow(rawDate);
-    const storedStatus = url.last_status || 'Ready';
     const storedAction = url.next_action || 'Monitoring';
+    const computedStatus = resolveReadinessStatus(url, rawDate, isStale);
 
     return {
       integration: url.name,
-      status: isStale ? 'Ready' : resolveDisplayStatus(storedStatus, rawDate),
+      status: resolveDisplayStatus(computedStatus, rawDate),
       impact: isStale ? 'No Changes' : (url.last_impact || 'No Changes'),
       action: isStale ? 'Monitoring' : storedAction,
       last_date: isStale ? 'Pending Analysis' : rawDate,
@@ -1367,7 +1403,7 @@ function App() {
         </ul>
         <div className="sidebar-footer">
           <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.4-gitlab</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.5-gitlab</p>
         </div>
       </aside>
 

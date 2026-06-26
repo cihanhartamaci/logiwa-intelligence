@@ -6,6 +6,7 @@ import schedule
 import urllib.parse
 from dotenv import load_dotenv
 from src.date_utils import freshness_to_days, is_within_review_window
+from src.status_utils import normalize_impact_level, resolve_integration_status
 from src.fetcher import Fetcher
 from src.llm_analyzer import LLMAnalyzer
 from src.notifications import Notifier
@@ -185,14 +186,12 @@ def job():
             # Sync Status back to Firestore if we have a source_id
             source_id = update.get('id')
             if firebase and source_id:
-                status_map = {
-                    "High": "Action Required",
-                    "Medium": "Needs Review",
-                    "Low": "Ready"
-                }
+                impact_level = normalize_impact_level(analysis.get("impact_level"))
+                resolved_status = resolve_integration_status(analysis)
                 status_data = {
-                    "last_status": status_map.get(analysis['impact_level'], "Ready"),
+                    "last_status": resolved_status,
                     "last_impact": analysis['type'],
+                    "last_impact_level": impact_level,
                     "next_action": analysis.get('action_required', "Monitoring"),
                     "last_date": analysis.get('release_date', 'N/A')
                 }
