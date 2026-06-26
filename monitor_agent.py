@@ -110,6 +110,7 @@ def job():
     
     if not updates:
         logger.info("No new content changes detected.")
+        firebase.record_cycle_run()
         return
 
     # 3. Analyze Updates
@@ -243,7 +244,8 @@ def job():
             "alert_count": len(alerts)
         })
         notifier.send_weekly_email(alerts)
-    
+
+    firebase.record_cycle_run()
     logger.info("Intelligence Cycle Completed.")
 
 def run_internal_reporter():

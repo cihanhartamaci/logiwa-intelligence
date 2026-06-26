@@ -58,6 +58,7 @@ function App() {
   const [intelligenceFreshness, setIntelligenceFreshness] = useState('1 Month');
   const [manualIntelligenceFreshness, setManualIntelligenceFreshness] = useState('3 Months');
   const [syncStatus, setSyncStatus] = useState('Initializing...');
+  const [lastRun, setLastRun] = useState(null);
   const [showManualInject, setShowManualInject] = useState(false);
   const [manualData, setManualData] = useState({ source: '', content: '' });
   const [viewMode, setViewMode] = useState('Technical'); // Technical vs Customer
@@ -120,6 +121,7 @@ function App() {
         }
         if (data.intelligence_freshness) setIntelligenceFreshness(data.intelligence_freshness);
         if (data.manual_intelligence_freshness) setManualIntelligenceFreshness(data.manual_intelligence_freshness);
+        if (data.last_run) setLastRun(data.last_run);
         setSyncStatus('Synced');
       } else {
         setSyncStatus('No remote config found');
@@ -294,6 +296,37 @@ function App() {
   });
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
+
+  const formatRelativeTime = (timestamp) => {
+    if (!timestamp) return 'Not run yet';
+    const millis = timestamp.seconds ? timestamp.seconds * 1000 : new Date(timestamp).getTime();
+    if (Number.isNaN(millis)) return 'Not run yet';
+    const diffMs = Date.now() - millis;
+    if (diffMs < 60000) return 'Just now';
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  };
+
+  const daysUntilDate = (dateStr) => {
+    const target = parseReleaseDate(dateStr);
+    if (!target) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.ceil((target - today) / 86400000);
+  };
+
+  const activeReadinessRows = readinessData.filter((row) => !row.isStale && row.status !== 'Ready');
+  const criticalAlertRow = readinessData.find((row) => !row.isStale && row.status === 'Action Required');
+  const reviewAlertRow = readinessData.find(
+    (row) => !row.isStale && row.status === 'Needs Review'
+  );
+  const newCapabilityRow = readinessData.find(
+    (row) => !row.isStale && String(row.impact || '').toLowerCase().includes('new capability')
+  ) || reviewAlertRow;
 
   const handleAddUrl = async (e) => {
     e.preventDefault();
@@ -630,42 +663,87 @@ function App() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">CRITICAL ALERT</span>
-            <span className="badge badge-red">Breaking</span>
+            <span className={`badge ${criticalAlertRow ? 'badge-red' : 'badge-green'}`}>
+              {criticalAlertRow ? 'Breaking' : 'Clear'}
+            </span>
           </div>
           <div className="card-body">
-            <h2>FedEx SOAP Retirement</h2>
-            <p style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>Deadline: June 1, 2026</p>
+            {criticalAlertRow ? (
+              <>
+                <h2>{criticalAlertRow.integration}</h2>
+                <p style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>
+                  Release: {criticalAlertRow.last_date}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2>No Critical Alerts</h2>
+                <p style={{ color: 'var(--text-secondary)' }}>No Action Required items in the current review window.</p>
+              </>
+            )}
           </div>
           <div className="card-footer">
-            <p>112 days remaining for migration.</p>
+            {criticalAlertRow ? (
+              <p>
+                {(() => {
+                  const days = daysUntilDate(criticalAlertRow.last_date);
+                  if (days === null) return criticalAlertRow.action?.slice(0, 120) || 'Review recommended action below.';
+                  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} since release date.`;
+                  if (days === 0) return 'Release date is today.';
+                  return `${days} day${days === 1 ? '' : 's'} until release date.`;
+                })()}
+              </p>
+            ) : (
+              <p>{activeReadinessRows.length} item{activeReadinessRows.length === 1 ? '' : 's'} need review in matrix.</p>
+            )}
           </div>
         </div>
 
         <div className="card">
           <div className="card-header">
             <span className="card-title">ACTIVE WORKFLOWS</span>
-            <span className="badge badge-green">Healthy</span>
+            <span className={`badge ${isPaused ? 'badge-yellow' : 'badge-green'}`}>
+              {isPaused ? 'Paused' : 'Healthy'}
+            </span>
           </div>
           <div className="card-body">
             <h2>Integration Monitor</h2>
-            <p>Last run: 14 mins ago</p>
+            <p>Last run: {formatRelativeTime(lastRun)}</p>
           </div>
           <div className="card-footer">
-            <p>{effectiveCiProvider === 'gitlab' ? 'GitLab CI Status' : 'GitHub Actions Status'}: ✅ Success</p>
+            <p>
+              {effectiveCiProvider === 'gitlab' ? 'GitLab CI' : 'GitHub Actions'} · {frequency} schedule
+              {isPaused ? ' · Paused' : ' · Active'}
+            </p>
           </div>
         </div>
 
         <div className="card">
           <div className="card-header">
             <span className="card-title">NEW CAPABILITY</span>
-            <span className="badge badge-yellow">Review</span>
+            <span className={`badge ${newCapabilityRow ? 'badge-yellow' : 'badge-green'}`}>
+              {newCapabilityRow ? 'Review' : 'None'}
+            </span>
           </div>
           <div className="card-body">
-            <h2>NetSuite 2026.1</h2>
-            <p>AI-Powered Close Manager</p>
+            {newCapabilityRow ? (
+              <>
+                <h2>{newCapabilityRow.integration}</h2>
+                <p>{newCapabilityRow.impact}</p>
+              </>
+            ) : (
+              <>
+                <h2>No New Capabilities</h2>
+                <p style={{ color: 'var(--text-secondary)' }}>Nothing flagged for capability review right now.</p>
+              </>
+            )}
           </div>
           <div className="card-footer">
-            <p>Deployment in progress (Phased).</p>
+            <p>
+              {newCapabilityRow
+                ? `Release: ${newCapabilityRow.last_date} · Status: ${newCapabilityRow.status}`
+                : 'Run Intelligence Cycle to refresh discoveries.'}
+            </p>
           </div>
         </div>
       </section>
@@ -1440,7 +1518,7 @@ function App() {
         </ul>
         <div className="sidebar-footer">
           <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.6-gitlab</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.7-gitlab</p>
         </div>
       </aside>
 

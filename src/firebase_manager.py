@@ -142,6 +142,10 @@ class FirebaseManager:
         except Exception as e:
             logger.error(f"Error updating manual injection status: {e}")
 
+    def record_cycle_run(self):
+        """Record the latest intelligence cycle timestamp for dashboard workflow cards."""
+        self.update_system_config({"last_run": firestore.SERVER_TIMESTAMP})
+
     def save_report(self, report_data):
         if not self.db:
             return
@@ -152,8 +156,6 @@ class FirebaseManager:
                 **report_data,
                 "timestamp": firestore.SERVER_TIMESTAMP
             })
-            # Also update last_run in system config
-            self.update_system_config({"last_run": firestore.SERVER_TIMESTAMP})
             logger.info("Intelligence report saved to Firestore.")
         except Exception as e:
             logger.error(f"Error saving report to Firestore: {e}")
