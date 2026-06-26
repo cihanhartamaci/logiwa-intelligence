@@ -5,6 +5,7 @@ import yaml
 import schedule
 import urllib.parse
 from dotenv import load_dotenv
+from src.date_utils import freshness_to_days, is_within_review_window
 from src.fetcher import Fetcher
 from src.llm_analyzer import LLMAnalyzer
 from src.notifications import Notifier
@@ -144,13 +145,25 @@ def job():
                     'Rate Limit', 'API versioning', 'Deprecation', 'Breaking change'
                 ]
         logger.info(f"Analyzing update from: {update['source']} (Category: {category})")
+        freshness_days = freshness_to_days(freshness)
         analysis = analyzer.analyze(
-            update['content'], 
-            update['url'], 
+            update['content'],
+            update['url'],
+            freshness=freshness_days,
             scopes=scopes
         )
         
         if analysis.get('is_relevant'):
+            release_date = analysis.get('release_date', 'N/A')
+            if not is_within_review_window(release_date, freshness_days):
+                logger.info(
+                    f"Update from {update['source']} ({release_date}) is outside "
+                    f"{freshness_days}-day window; skipping alert/status update."
+                )
+                if firebase and update.get('new_hash'):
+                    firebase.update_url_hash(update['id'], update['new_hash'])
+                continue
+
             # Update hash in Firestore to avoid re-triggering next time (Stateless migration)
             if firebase and update.get('new_hash'):
                 firebase.update_url_hash(update['id'], update['new_hash'])

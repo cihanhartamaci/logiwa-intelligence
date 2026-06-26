@@ -31,6 +31,9 @@ class LLMAnalyzer:
         
     def analyze(self, content, base_url, freshness=30, scopes=None):
         import datetime
+        from src.date_utils import freshness_to_days, is_within_review_window
+
+        freshness_days = freshness_to_days(freshness)
         today = datetime.datetime.now().strftime("%Y-%m-%d")
         
         scope_instruction = ""
@@ -52,7 +55,7 @@ class LLMAnalyzer:
         Your analysis must be detailed and professional.
         
         FILTERING RULES:
-        - DATE RULE: If the technical update, release note, or fix is dated MORE THAN {freshness} AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false.
+        - DATE RULE: If the technical update, release note, or fix is dated MORE THAN {freshness_days} DAYS AGO from TODAY'S DATE ({today}), you MUST set 'is_relevant': false. Future-dated releases are allowed.
         - DOMAIN RULE: The update must be relevant to WMS, Shipping, or Ecommerce integrations.{scope_filtering_rule}
         
         Task:
@@ -189,7 +192,16 @@ class LLMAnalyzer:
                  return {"summary": "Invalid LLM Response Format", "impact_level": "Low", "type": "Error", "is_relevant": False}
                  
             try:
-                return json.loads(cleaned_text)
+                result = json.loads(cleaned_text)
+                if result.get("is_relevant") and not is_within_review_window(
+                    result.get("release_date"), freshness_days
+                ):
+                    logger.info(
+                        f"Rejected stale release date {result.get('release_date')} "
+                        f"(>{freshness_days} days old)"
+                    )
+                    result["is_relevant"] = False
+                return result
             except json.JSONDecodeError as e:
                 logger.error(f"JSON Decode Error: {e}. Raw: {cleaned_text[:200]}")
                 return {"summary": "JSON Parsing Error", "impact_level": "Low", "type": "Error", "is_relevant": False}

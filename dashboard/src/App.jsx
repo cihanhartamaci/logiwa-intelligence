@@ -174,13 +174,49 @@ function App() {
     signOut(auth);
   };
 
-  const readinessData = monitoredUrls.map(url => ({
-    integration: url.name,
-    status: url.last_status || 'Ready',
-    impact: url.last_impact || 'No Changes',
-    action: url.next_action || 'Monitoring',
-    last_date: url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis'
-  }));
+  const REVIEW_WINDOW_DAYS = 30;
+
+  const parseReleaseDate = (dateStr) => {
+    if (!dateStr || dateStr === 'N/A' || dateStr === 'Pending Analysis') return null;
+    const isoMatch = String(dateStr).match(/(\d{4}-\d{2}-\d{2})/);
+    const parsed = new Date(isoMatch ? isoMatch[1] : dateStr);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const isWithinReviewWindow = (dateStr, windowDays = REVIEW_WINDOW_DAYS) => {
+    const releaseDate = parseReleaseDate(dateStr);
+    if (!releaseDate) return true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - windowDays);
+    releaseDate.setHours(0, 0, 0, 0);
+    return releaseDate >= cutoff;
+  };
+
+  const resolveDisplayStatus = (storedStatus, lastDate) => {
+    const actionable = storedStatus === 'Needs Review' || storedStatus === 'Action Required';
+    if (actionable && !isWithinReviewWindow(lastDate)) {
+      return 'Ready';
+    }
+    return storedStatus || 'Ready';
+  };
+
+  const readinessData = monitoredUrls.map(url => {
+    const lastDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
+    const storedStatus = url.last_status || 'Ready';
+    const status = resolveDisplayStatus(storedStatus, lastDate);
+    const isStale = status !== storedStatus;
+
+    return {
+      integration: url.name,
+      status,
+      impact: isStale ? 'No Changes' : (url.last_impact || 'No Changes'),
+      action: isStale ? 'Monitoring' : (url.next_action || 'Monitoring'),
+      last_date: lastDate
+    };
+  });
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
 
@@ -577,7 +613,9 @@ function App() {
       <section className="data-table-container">
         <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '1.125rem' }}>Readiness Matrix</h3>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Updated: Feb 20, 2026</span>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Updated: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
         </div>
         <table>
           <thead>
