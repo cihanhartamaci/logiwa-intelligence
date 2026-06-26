@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
 import html2pdf from 'html2pdf.js';
 import { LOGIWA_LOGO_BASE64 } from './logo_base64';
+import { getIntegrationLogo, getImpactStyles } from './integrationLogos';
 import { auth, db } from './firebase';
 import {
   signInWithEmailAndPassword,
@@ -206,15 +207,16 @@ function App() {
   const readinessData = monitoredUrls.map(url => {
     const lastDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
     const storedStatus = url.last_status || 'Ready';
-    const status = resolveDisplayStatus(storedStatus, lastDate);
-    const isStale = status !== storedStatus;
+    const isStale = lastDate !== 'Pending Analysis' && !isWithinReviewWindow(lastDate);
+    const status = isStale ? 'Ready' : resolveDisplayStatus(storedStatus, lastDate);
 
     return {
       integration: url.name,
       status,
       impact: isStale ? 'No Changes' : (url.last_impact || 'No Changes'),
       action: isStale ? 'Monitoring' : (url.next_action || 'Monitoring'),
-      last_date: lastDate
+      last_date: lastDate,
+      isStale
     };
   });
 
@@ -512,23 +514,8 @@ function App() {
     }
   };
 
-  const getLogo = (name) => {
-    const LOGO_MAP = {
-      'Shopify': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopify_logo_2018.svg/512px-Shopify_logo_2018.svg.png',
-      'NetSuite': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Oracle_NetSuite_logo.svg/512px-Oracle_NetSuite_logo.svg.png',
-      'FedEx': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRccXb1NQDWasHL7N6Ibb3sYUs4vRYu0JIvvA&s',
-      'Amazon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/512px-Amazon_logo.svg.png',
-      'Walmart': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Walmart_logo_%282008%29.svg',
-      'TikTok': 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/TikTok_logo.svg/512px-TikTok_logo.svg.png',
-      'Etsy': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Etsy_logo.svg/512px-Etsy_logo.svg.png',
-      'Shippo': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRm1OBTShEIiV0VfOHKJB-NnKtb48RU-X98Dg&s'
-    };
-    const searchName = name.toLowerCase();
-    for (const key in LOGO_MAP) {
-      if (searchName.includes(key.toLowerCase())) return LOGO_MAP[key];
-    }
-    return null;
-  };
+  const getReportItems = (report) =>
+    parseReportMarkdown(report?.content || '').filter((item) => isWithinReviewWindow(item.releaseDate));
 
   const downloadPdf = async (report) => {
     const element = document.getElementById('report-pdf-template');
@@ -640,18 +627,22 @@ function App() {
                 </td>
                 <td style={{ verticalAlign: 'top', paddingTop: '1.5rem' }}>{row.impact}</td>
                 <td style={{ verticalAlign: 'top', paddingTop: '1.25rem' }}>
-                  <div style={{
-                    padding: '8px 12px',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
-                    lineHeight: '1.5',
-                    maxWidth: '450px'
-                  }}>
-                    {row.action}
-                  </div>
+                  {row.isStale ? (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Monitoring</span>
+                  ) : (
+                    <div style={{
+                      padding: '8px 12px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: '1.5',
+                      maxWidth: '450px'
+                    }}>
+                      {row.action}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -1224,7 +1215,7 @@ function App() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <img src={LOGIWA_LOGO_BASE64} alt="Logiwa" style={{ height: '45px' }} />
-                    <p style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>Automated Assessment v1.2</p>
+                    <p style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>Automated Assessment v1.3</p>
                   </div>
                 </div>
 
@@ -1236,7 +1227,7 @@ function App() {
                   </div>
                   <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                     <p style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '5px' }}>Critical Discoveries</p>
-                    <p style={{ fontWeight: '700', fontSize: '14px', color: '#ef4444' }}>{selectedReport.alert_count || 0} Priority Alerts</p>
+                    <p style={{ fontWeight: '700', fontSize: '14px', color: '#ef4444' }}>{getReportItems(selectedReport).length} Priority Alerts</p>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                     <p style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '5px' }}>Verified At</p>
@@ -1247,43 +1238,83 @@ function App() {
                 {/* Content Sections */}
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   {viewMode === 'Technical' ? (
-                    parseReportMarkdown(selectedReport.content).map((item, idx) => (
-                      <div key={idx} style={{ marginBottom: '50px', pageBreakInside: 'avoid' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
-                          <div style={{ width: '60px', height: '60px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
-                            {getLogo(item.title) ? (
-                              <img src={getLogo(item.title)} alt={item.title} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
-                            ) : (
-                              <div style={{ fontSize: '20px' }}>📦</div>
-                            )}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <h2 style={{ fontSize: '16px', margin: 0, color: '#000', fontWeight: '700' }}>{item.title}</h2>
-                              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold' }}>REL: {item.releaseDate}</span>
+                    getReportItems(selectedReport).length > 0 ? (
+                      getReportItems(selectedReport).map((item, idx) => {
+                        const impactStyle = getImpactStyles(item.impact);
+                        const logo = getIntegrationLogo(item.title);
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              marginBottom: '36px',
+                              pageBreakInside: 'avoid',
+                              background: '#fff',
+                              border: '1px solid #e2e8f0',
+                              borderLeft: `5px solid ${impactStyle.border}`,
+                              borderRadius: '14px',
+                              overflow: 'hidden',
+                              boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '18px', padding: '22px 24px', background: impactStyle.bg, borderBottom: '1px solid #e2e8f0' }}>
+                              <div style={{ width: '72px', height: '72px', background: '#fff', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0', flexShrink: 0, padding: '10px', boxSizing: 'border-box' }}>
+                                {logo ? (
+                                  <img src={logo} alt={item.title} crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                ) : (
+                                  <div style={{ fontSize: '28px' }}>📦</div>
+                                )}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                                  <h2 style={{ fontSize: '18px', margin: 0, color: '#0f172a', fontWeight: '800' }}>{item.title}</h2>
+                                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', whiteSpace: 'nowrap' }}>Release: {item.releaseDate}</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '11px', background: '#fff', padding: '4px 10px', borderRadius: '999px', fontWeight: '700', border: '1px solid #e2e8f0' }}>{item.type}</span>
+                                  <span style={{ fontSize: '11px', background: impactStyle.badge, color: '#fff', padding: '4px 10px', borderRadius: '999px', fontWeight: '800' }}>
+                                    {impactStyle.label}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                              <span style={{ fontSize: '12px', background: '#eee', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>{item.type}</span>
-                              <span style={{
-                                padding: '2px 10px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: '800',
-                                background: item.impact.startsWith('High') ? '#ef4444' : item.impact.startsWith('Medium') ? '#f59e0b' : '#10b981',
-                                color: '#fff',
-                              }}>
-                                {item.impact.toUpperCase()} IMPACT
-                              </span>
-                            </div>
-                          </div>
-                        </div>
 
-                        <div style={{ padding: '20px' }}>
-                          <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b' }}>Technical Assessment</p>
-                          <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>{item.summary}</p>
-                        </div>
+                            <div style={{ padding: '24px' }}>
+                              <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.08em' }}>Executive Summary</p>
+                              <p style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', margin: '0 0 20px' }}>{item.summary}</p>
+
+                              {item.details?.length > 0 && (
+                                <>
+                                  <p style={{ fontWeight: '800', marginBottom: '10px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.08em' }}>Technical Details</p>
+                                  <ul style={{ margin: '0 0 20px', paddingLeft: '18px', color: '#334155', fontSize: '13px', lineHeight: '1.7' }}>
+                                    {item.details.map((detail, detailIdx) => (
+                                      <li key={detailIdx} style={{ marginBottom: '6px' }}>{detail}</li>
+                                    ))}
+                                  </ul>
+                                </>
+                              )}
+
+                              {item.logiwaImpact && (
+                                <>
+                                  <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.08em' }}>Logiwa Impact</p>
+                                  <p style={{ fontSize: '13px', lineHeight: '1.7', color: '#334155', margin: '0 0 20px' }}>{item.logiwaImpact}</p>
+                                </>
+                              )}
+
+                              {item.actionRequired && (
+                                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '16px 18px' }}>
+                                  <p style={{ fontWeight: '800', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', color: '#1d4ed8', letterSpacing: '0.08em' }}>Recommended Action</p>
+                                  <p style={{ fontSize: '13px', lineHeight: '1.7', color: '#1e3a8a', margin: 0 }}>{item.actionRequired}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
+                        No actionable discoveries within the last 30 days for this report window.
                       </div>
-                    ))
+                    )
                   ) : (
                     <div className="customer-notes-view" style={{ fontSize: '14px', lineHeight: '1.7', color: '#1e293b' }}>
                       <div style={{ padding: '30px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -1340,7 +1371,7 @@ function App() {
         </ul>
         <div className="sidebar-footer">
           <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', marginTop: '1rem' }} onClick={handleLogout}>Logout</button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.1-gitlab</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>v1.2.2-gitlab</p>
         </div>
       </aside>
 
