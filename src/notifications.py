@@ -73,12 +73,13 @@ class Notifier:
         except Exception as e:
             logger.error(f"Failed to send Slack alert: {e}")
 
-    def send_weekly_email(self, alerts):
+    def send_digest_email(self, alerts):
+        """Send scheduled digest for Action Required and Needs Review items."""
         if not self.config['email']['enabled'] or not self.sender_email:
             logger.warning("Email notification skipped (Disabled or missing credentials)")
             return
 
-        subject = f"📊 Logiwa Integration Intelligence Report ({len(alerts)} items)"
+        subject = f"📊 Logiwa Integration Intelligence Digest ({len(alerts)} items)"
         
         logo_url = "https://logiwa.com.tr/wp-content/uploads/2018/11/logo-web-site-300x138.png"
         body = f"""
@@ -108,6 +109,9 @@ class Notifier:
 
         self._send_email(subject, body, self.recipients)
 
+    def send_weekly_email(self, alerts):
+        """Backward-compatible alias for digest email."""
+        self.send_digest_email(alerts)
 
     def send_internal_report_email(self, html_content):
          if not self.config['email']['enabled']:

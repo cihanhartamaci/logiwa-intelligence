@@ -1,6 +1,11 @@
 from datetime import datetime, timedelta
 
-from src.status_utils import normalize_impact_level, resolve_integration_status
+from src.status_utils import (
+    normalize_impact_level,
+    resolve_integration_status,
+    should_include_in_digest,
+    should_send_slack_alert,
+)
 
 
 def test_normalize_impact_level():
@@ -39,3 +44,15 @@ def test_resolve_integration_status_new_capability_medium():
         "action_required": "Evaluate new endpoint for WMS sync.",
     }
     assert resolve_integration_status(analysis) == "Needs Review"
+
+
+def test_should_send_slack_alert_for_high_and_medium():
+    assert should_send_slack_alert("Action Required") is True
+    assert should_send_slack_alert("Needs Review") is True
+    assert should_send_slack_alert("Ready") is False
+
+
+def test_should_include_in_digest():
+    assert should_include_in_digest("Action Required") is True
+    assert should_include_in_digest("Needs Review") is True
+    assert should_include_in_digest("Ready") is False

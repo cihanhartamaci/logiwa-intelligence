@@ -225,7 +225,7 @@ class LLMAnalyzer:
             }
     def generate_customer_notes(self, technical_details):
         """
-        Translates complex technical integration updates into polished, 
+        Translates complex technical integration updates into polished,
         customer-facing release notes or blog post drafts.
         """
         prompt = f"""
@@ -253,13 +253,42 @@ class LLMAnalyzer:
         ## Why It Matters
         [Impact summary]
         """
-        
+        return self._generate_text(prompt) or "Professional notes could not be generated at this time."
+
+    def _generate_text(self, prompt):
+        if not self.client:
+            logger.error("No LLM client available for text generation.")
+            return None
+
         try:
-            # Reusing the existing multi-tier logic but specifically for this text generation task
-            # For simplicity in this step, we use the primary model but we could wrap the fallback logic into a private method
-            model = self.client.GenerativeModel(self.model)
-            response = model.generate_content(prompt)
-            return response.text
+            if self.provider == "openai":
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return response.choices[0].message.content
+
+            if self.provider == "gemini":
+                model = self.client.GenerativeModel(self.model)
+                response = model.generate_content(prompt)
+                return response.text
         except Exception as e:
-            logger.error(f"Customer note generation failed: {e}")
-            return "Professional notes could not be generated at this time."
+            logger.error(f"Primary text generation failed ({self.provider}): {e}")
+
+        # Best-effort fallback to the alternate configured provider.
+        try:
+            if self.provider != "openai" and os.getenv("OPENAI_API_KEY"):
+                fallback = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                response = fallback.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return response.choices[0].message.content
+            if self.provider != "gemini" and os.getenv("GOOGLE_API_KEY"):
+                genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+                model = genai.GenerativeModel("gemini-flash-latest")
+                return model.generate_content(prompt).text
+        except Exception as e:
+            logger.error(f"Fallback text generation failed: {e}")
+
+        return None

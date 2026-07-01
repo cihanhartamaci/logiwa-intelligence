@@ -6,7 +6,13 @@ import schedule
 import urllib.parse
 from dotenv import load_dotenv
 from src.date_utils import freshness_to_days, is_within_review_window, resolve_release_date
-from src.status_utils import normalize_impact_level, resolve_integration_status
+from src.status_utils import (
+    normalize_impact_level,
+    resolve_integration_status,
+    should_include_in_digest,
+    should_send_slack_alert,
+)
+from src.source_loader import load_default_sources
 from src.fetcher import Fetcher
 from src.llm_analyzer import LLMAnalyzer
 from src.notifications import Notifier
@@ -86,8 +92,8 @@ def job():
     # 1. Fetch URLs (Prioritize Firestore)
     sources = firebase.get_monitored_urls()
     if not sources:
-        logger.info("No URLs found in Firestore, falling back to config.yaml")
-        sources = config.get('sources', [])
+        logger.info("No URLs found in Firestore, falling back to sources.yaml")
+        sources = load_default_sources()
     
     if not sources:
         logger.warning("No sources to monitor. Exiting.")
@@ -168,6 +174,7 @@ def job():
                 )
                 continue
 
+            resolved_status = resolve_integration_status(analysis, freshness_days)
             alert = {
                 "source": update['source'],
                 "url": analysis.get('source_url', update['url']),
@@ -178,7 +185,8 @@ def job():
                 "impact_level": analysis['impact_level'],
                 "type": analysis['type'],
                 "release_date": resolved_release_date,
-                "exact_quote": analysis.get('exact_quote', '')
+                "exact_quote": analysis.get('exact_quote', ''),
+                "resolved_status": resolved_status,
             }
             alerts.append(alert)
             
@@ -186,7 +194,6 @@ def job():
             source_id = update.get('id')
             if firebase and source_id:
                 impact_level = normalize_impact_level(analysis.get("impact_level"))
-                resolved_status = resolve_integration_status(analysis, freshness_days)
                 status_data = {
                     "last_status": resolved_status,
                     "last_impact": analysis['type'],
@@ -217,13 +224,12 @@ def job():
             report_content += f"### ✅ Recommended Action\n> {analysis.get('action_required')}\n\n"
             report_content += "---\n\n"
 
-            # 4. Immediate Alerting (if High or Medium Impact)
-            impact_check = normalize_impact_level(analysis.get('impact_level'))
-            if impact_check in ('High', 'Medium'):
-                logger.info(f"High/Medium impact detected ({analysis['impact_level']}). Sending Slack alert...")
+            # 4. Immediate alerting: Slack for Action Required and Needs Review (High/Medium)
+            if should_send_slack_alert(resolved_status):
+                logger.info(f"{resolved_status} for {update['source']}. Sending Slack alert...")
                 notifier.send_slack_alert(alert)
             else:
-                logger.info(f"Impact level '{analysis['impact_level']}' below threshold. Skipping Slack alert.")
+                logger.info(f"Status '{resolved_status}' does not require Slack alert.")
 
         logger.info("Sleeping 10s to respect Rate Limits...")
         time.sleep(10)
@@ -241,7 +247,14 @@ def job():
             "status": "Ready",
             "alert_count": len(alerts)
         })
-        notifier.send_weekly_email(alerts)
+        if not is_manual:
+            digest_alerts = [alert for alert in alerts if should_include_in_digest(alert.get("resolved_status"))]
+            if digest_alerts:
+                notifier.send_digest_email(digest_alerts)
+            else:
+                logger.info("No Action Required / Needs Review items for digest email.")
+        else:
+            logger.info("Manual run: skipping digest email.")
 
     firebase.record_cycle_run()
     logger.info("Intelligence Cycle Completed.")

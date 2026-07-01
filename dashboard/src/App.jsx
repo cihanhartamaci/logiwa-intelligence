@@ -3,6 +3,13 @@ import './Dashboard.css';
 import html2pdf from 'html2pdf.js';
 import { LOGIWA_LOGO_BASE64 } from './logo_base64';
 import { getIntegrationLogo, getImpactStyles } from './integrationLogos';
+import defaultSources from './defaultSources.json';
+import {
+  buildReadinessRow,
+  freshnessToDays,
+  parseReleaseDate,
+  statusBadgeClass,
+} from './readinessUtils';
 import { auth, db } from './firebase';
 import {
   signInWithEmailAndPassword,
@@ -170,20 +177,9 @@ function App() {
   };
 
   const seedIndustrySources = async () => {
-    const defaults = [
-      { name: 'NetSuite Release Notes', url: 'https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/latest-release.html', category: 'ERPs' },
-      { name: 'Shopify Changelog', url: 'https://shopify.dev/changelog', category: 'Marketplaces' },
-      { name: 'Shippo Changelog', url: 'https://goshippo.com/docs/changelog/', category: 'Carriers' },
-      { name: 'FedEx Announcements', url: 'https://developer.fedex.com/api/en-us/announcements.html', category: 'Carriers' },
-      { name: 'Amazon SP-API Blog', url: 'https://developer-docs.amazon.com/sp-api/blog', category: 'Marketplaces' },
-      { name: 'Walmart Developer News', url: 'https://developer.walmart.com/news', category: 'Marketplaces' },
-      { name: 'TikTok Shop News', url: 'https://developers.tiktok-shops.com/documents/news', category: 'Marketplaces' },
-      { name: 'Etsy Developer News', url: 'https://www.etsy.com/developers/news', category: 'Marketplaces' },
-    ];
-
     try {
       const batch = [];
-      defaults.forEach((source) => {
+      defaultSources.forEach((source) => {
         batch.push(addDoc(collection(db, 'monitored_urls'), source));
       });
       await Promise.all(batch);
@@ -198,123 +194,9 @@ function App() {
     signOut(auth);
   };
 
-  const REVIEW_WINDOW_DAYS = 30;
+  const reviewWindowDays = freshnessToDays(intelligenceFreshness);
 
-  const extractDatesFromText = (text) => {
-    if (!text) return [];
-    const found = [];
-    const value = String(text);
-
-    for (const match of value.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)) {
-      found.push(match[1]);
-    }
-    for (const match of value.matchAll(/\b(20\d{2})-(0[1-9]|1[0-2])\b(?!-\d{2})/g)) {
-      found.push(`${match[1]}-${match[2]}-01`);
-    }
-    for (const match of value.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/gi)) {
-      const parsed = new Date(`${match[1]} ${match[2]}, ${match[3]}`);
-      if (!Number.isNaN(parsed.getTime())) found.push(parsed.toISOString().slice(0, 10));
-    }
-    for (const match of value.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/gi)) {
-      const parsed = new Date(`${match[1]} 1, ${match[2]}`);
-      if (!Number.isNaN(parsed.getTime())) found.push(parsed.toISOString().slice(0, 10));
-    }
-    return [...new Set(found)];
-  };
-
-  const resolveDisplayReleaseDate = (url, storedDate) => {
-    const actionDates = extractDatesFromText(url.next_action || '')
-      .map((token) => ({ token, parsed: parseReleaseDate(token) }))
-      .filter((item) => item.parsed);
-
-    if (actionDates.length > 0) {
-      return actionDates.sort((a, b) => b.parsed - a.parsed)[0].token;
-    }
-
-    return storedDate;
-  };
-
-  const parseReleaseDate = (dateStr) => {
-    if (!dateStr || dateStr === 'N/A' || dateStr === 'Pending Analysis') return null;
-    const isoMatch = String(dateStr).match(/(\d{4}-\d{2}-\d{2})/);
-    if (!isoMatch) return null;
-    const [year, month, day] = isoMatch[1].split('-').map(Number);
-    return new Date(year, month - 1, day);
-  };
-
-  const hasActionableRecommendation = (action) => {
-    if (!action) return false;
-    const normalized = action.trim().toLowerCase();
-    return normalized !== 'monitoring' && normalized !== 'n/a' && normalized !== 'none';
-  };
-
-  const resolveReadinessStatus = (url, rawDate, isStale) => {
-    if (isStale) return 'Ready';
-
-    const storedStatus = url.last_status || 'Ready';
-    const impactType = (url.last_impact || '').toLowerCase();
-    const impactLevel = (url.last_impact_level || '').toLowerCase();
-    const action = url.next_action || 'Monitoring';
-    const hasDate = rawDate !== 'Pending Analysis';
-    const hasAction = hasActionableRecommendation(action);
-
-    if (storedStatus === 'Action Required') return 'Action Required';
-    if (storedStatus === 'Needs Review') return 'Needs Review';
-
-    if (hasDate && hasAction) {
-      if (impactLevel.startsWith('high')) return 'Action Required';
-      if (impactType.includes('breaking')) return 'Needs Review';
-      if (
-        impactLevel.startsWith('medium') ||
-        impactType.includes('maintenance') ||
-        impactType.includes('new capability') ||
-        impactType.includes('deprecation')
-      ) {
-        return 'Needs Review';
-      }
-    }
-
-    return storedStatus;
-  };
-
-  const isWithinReviewWindow = (dateStr, windowDays = REVIEW_WINDOW_DAYS) => {
-    const releaseDate = parseReleaseDate(dateStr);
-    if (!releaseDate) return true;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const cutoff = new Date(today);
-    cutoff.setDate(cutoff.getDate() - windowDays);
-    releaseDate.setHours(0, 0, 0, 0);
-    return releaseDate >= cutoff;
-  };
-
-  const resolveDisplayStatus = (storedStatus, lastDate) => {
-    const actionable = storedStatus === 'Needs Review' || storedStatus === 'Action Required';
-    if (actionable && !isWithinReviewWindow(lastDate)) {
-      return 'Ready';
-    }
-    return storedStatus || 'Ready';
-  };
-
-  const readinessData = monitoredUrls.map(url => {
-    const storedDate = url.last_date && url.last_date !== 'N/A' ? url.last_date : 'Pending Analysis';
-    const effectiveDate = storedDate === 'Pending Analysis'
-      ? storedDate
-      : resolveDisplayReleaseDate(url, storedDate);
-    const isStale = effectiveDate !== 'Pending Analysis' && !isWithinReviewWindow(effectiveDate);
-    const storedAction = url.next_action || 'Monitoring';
-    const computedStatus = resolveReadinessStatus(url, effectiveDate, isStale);
-
-    return {
-      integration: url.name,
-      status: resolveDisplayStatus(computedStatus, effectiveDate),
-      impact: isStale ? 'No Changes' : (url.last_impact || 'No Changes'),
-      action: isStale ? 'Monitoring' : storedAction,
-      last_date: isStale ? 'Pending Analysis' : effectiveDate,
-      isStale
-    };
-  });
+  const readinessData = monitoredUrls.map((url) => buildReadinessRow(url, reviewWindowDays));
 
   const categories = ['ERPs', 'Carriers', 'Marketplaces', 'General'];
 
@@ -937,7 +819,7 @@ function App() {
                       <td style={{ fontWeight: '500', paddingLeft: '2rem' }}>↳ {s.name}</td>
                       <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--accent-cyan)' }}>{s.category}</span></td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.url}</td>
-                      <td><span className="badge badge-green">Monitoring</span></td>
+                      <td><span className={statusBadgeClass(s.last_status || 'Monitoring')}>{s.last_status || 'Monitoring'}</span></td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button

@@ -1,6 +1,16 @@
 stages:
+  - test
   - deploy
   - monitor
+
+test:
+  stage: test
+  image: python:3.10
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - pip install --quiet -r requirements.txt -r requirements-dev.txt
+    - python -m pytest tests/ -q
 
 # Dashboard → GitLab Pages (replaces deploy_dashboard.yml)
 pages:
@@ -10,6 +20,9 @@ pages:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web" && $INTELLIGENCE_CYCLE != "true"
   script:
+    - apt-get update -qq && apt-get install -y -qq python3 python3-pip
+    - pip3 install --quiet pyyaml
+    - python3 scripts/export_default_sources.py
     - cd dashboard
     - npm ci
     - npm run build

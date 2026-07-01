@@ -50,8 +50,13 @@ def resolve_integration_status(analysis: dict, freshness_days: int = 30) -> str:
     if "breaking" in change_type:
         return "Action Required" if impact_level == "High" else "Needs Review"
 
-    if any(token in change_type for token in ("maintenance", "new capability", "deprecation")):
-        if status == "Ready":
-            return "Needs Review"
-
     return status
+
+
+def should_send_slack_alert(resolved_status: str) -> bool:
+    """Immediate Slack for High (Action Required) and Medium (Needs Review) items."""
+    return resolved_status in ("Action Required", "Needs Review")
+
+
+def should_include_in_digest(resolved_status: str) -> bool:
+    return resolved_status in ("Action Required", "Needs Review")
