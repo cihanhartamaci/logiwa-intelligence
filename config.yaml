@@ -5,6 +5,8 @@ log_level: "INFO"
 # LLM Configuration (Choose 'openai' or 'gemini')
 llm_provider: "gemini"
 llm_model: "gemini-flash-latest"
+# Pollinations.ai fallback is for local dev only; keep false in CI/production
+allow_pollinations_fallback: false
 
 # Notification Configuration
 notifications:

@@ -18,10 +18,15 @@ import {
   doc,
   deleteDoc,
   setDoc,
-  updateDoc
+  updateDoc,
+  deleteField
 } from "firebase/firestore";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+
+const LS_GH_PAT = 'li_gh_pat';
+const LS_GL_PAT = 'li_gl_pat';
+const LS_GL_TRIGGER = 'li_gl_trigger_token';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -36,10 +41,16 @@ function App() {
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [intelReports, setIntelReports] = useState([]);
-  const [githubPat, setGithubPat] = useState('');
+  const [githubPat, setGithubPat] = useState(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem(LS_GH_PAT) || '') : ''
+  );
   const [githubRepo, setGithubRepo] = useState('cihanhartamaci/logiwa-intelligence');
-  const [gitlabPat, setGitlabPat] = useState('');
-  const [gitlabTriggerToken, setGitlabTriggerToken] = useState('');
+  const [gitlabPat, setGitlabPat] = useState(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem(LS_GL_PAT) || '') : ''
+  );
+  const [gitlabTriggerToken, setGitlabTriggerToken] = useState(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem(LS_GL_TRIGGER) || '') : ''
+  );
   const [gitlabProject, setGitlabProject] = useState('83638649');
   const [gitlabRef, setGitlabRef] = useState('main');
   const [ciProvider, setCiProvider] = useState(() =>
@@ -108,10 +119,20 @@ function App() {
         const data = docSnap.data();
         if (data.is_paused !== undefined) setIsPaused(data.is_paused);
         if (data.frequency) setFrequency(data.frequency);
-        if (data.gh_pat) setGithubPat(data.gh_pat);
+        // CI tokens stay in browser localStorage only — migrate legacy Firestore copies once
+        if (data.gh_pat && !localStorage.getItem(LS_GH_PAT)) {
+          localStorage.setItem(LS_GH_PAT, data.gh_pat);
+          setGithubPat(data.gh_pat);
+        }
+        if (data.gl_pat && !localStorage.getItem(LS_GL_PAT)) {
+          localStorage.setItem(LS_GL_PAT, data.gl_pat);
+          setGitlabPat(data.gl_pat);
+        }
+        if (data.gl_trigger_token && !localStorage.getItem(LS_GL_TRIGGER)) {
+          localStorage.setItem(LS_GL_TRIGGER, data.gl_trigger_token);
+          setGitlabTriggerToken(data.gl_trigger_token);
+        }
         if (data.gh_repo) setGithubRepo(data.gh_repo);
-        if (data.gl_pat) setGitlabPat(data.gl_pat);
-        if (data.gl_trigger_token) setGitlabTriggerToken(data.gl_trigger_token);
         if (data.gl_project) setGitlabProject(data.gl_project);
         if (data.gl_ref) setGitlabRef(data.gl_ref);
         if (data.ci_provider && !window.location.hostname.includes('gitlab.io')) {
@@ -557,22 +578,26 @@ function App() {
   };
 
   const saveSettings = async () => {
-    // Sync to Firestore for all users (Global Config)
+    localStorage.setItem(LS_GH_PAT, githubPat);
+    localStorage.setItem(LS_GL_PAT, gitlabPat);
+    localStorage.setItem(LS_GL_TRIGGER, gitlabTriggerToken);
+
+    // Sync non-secret settings to Firestore; strip legacy token fields
     try {
       await setDoc(doc(db, "config", "system"), {
         frequency,
         ci_provider: effectiveCiProvider,
-        gh_pat: githubPat,
         gh_repo: githubRepo,
-        gl_pat: gitlabPat,
-        gl_trigger_token: gitlabTriggerToken,
         gl_project: gitlabProject,
         gl_ref: gitlabRef,
         intelligence_freshness: intelligenceFreshness,
-        manual_intelligence_freshness: manualIntelligenceFreshness
+        manual_intelligence_freshness: manualIntelligenceFreshness,
+        gh_pat: deleteField(),
+        gl_pat: deleteField(),
+        gl_trigger_token: deleteField(),
       }, { merge: true });
       setShowSettings(false);
-      alert("Settings saved and synced globally!");
+      alert("Settings saved. CI tokens are stored locally in this browser only.");
     } catch (e) {
       console.error("Failed to sync settings to Firestore", e);
       alert("Failed to save settings. Check permissions.");
@@ -1196,7 +1221,8 @@ function App() {
                     onChange={e => setGitlabTriggerToken(e.target.value)}
                   />
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                    GitLab proje → <strong>Settings → CI/CD → Pipeline triggers</strong> → Add trigger → token kopyala
+                    GitLab proje → <strong>Settings → CI/CD → Pipeline triggers</strong> → Add trigger → token kopyala.
+                    Token yalnızca bu tarayıcıda saklanır (Firestore&apos;a yazılmaz).
                   </p>
                 </div>
                 <div style={{ marginBottom: '1.5rem' }}>

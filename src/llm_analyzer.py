@@ -10,6 +10,7 @@ class LLMAnalyzer:
     def __init__(self, config):
         self.provider = config.get('llm_provider', 'openai')
         self.model = config.get('llm_model', 'gpt-4-turbo-preview')
+        self.allow_pollinations_fallback = config.get('allow_pollinations_fallback', False)
         
         if self.provider == 'openai':
             api_key = os.getenv("OPENAI_API_KEY")
@@ -109,6 +110,12 @@ class LLMAnalyzer:
             # If not using Gemini initially, adjust list
             if self.provider != 'gemini':
                 fallbacks = [{"provider": self.provider, "model": self.model}] + [f for f in fallbacks if f['provider'] == 'pollinations']
+
+            if not self.allow_pollinations_fallback:
+                fallbacks = [f for f in fallbacks if f['provider'] != 'pollinations']
+                if not fallbacks:
+                    logger.error("No LLM providers available (Pollinations fallback disabled).")
+                    return {"summary": "No LLM Client", "impact_level": "Low", "type": "Error", "is_relevant": False}
 
             max_retries = len(fallbacks)
             retry_count = 0

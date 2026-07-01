@@ -6,6 +6,8 @@ import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from src.status_utils import normalize_impact_level
+
 logger = logging.getLogger("Notifier")
 
 class Notifier:
@@ -24,7 +26,8 @@ class Notifier:
             logger.warning("Slack notification skipped (Disabled or missing WebhookURL)")
             return
 
-        color = "#FF0000" if alert['impact_level'] == 'High' else "#FFA500"
+        impact = normalize_impact_level(alert.get("impact_level"))
+        color = "#FF0000" if impact == "High" else "#FFA500"
         
         # Deep link direct to text if available
         alert_url = alert['url']
@@ -42,7 +45,7 @@ class Notifier:
                     "pretext": f"🚨 *New Integration Alert: {alert['source']}*",
                     "title": alert[ 'type'],
                     "title_link": alert_url,
-                    "text": f"*{alert['impact_level']} Impact*\n{alert['summary']}",
+                    "text": f"*{impact} Impact*\n{alert['summary']}",
                     "fields": [
                         {
                             "title": "Release Date",
@@ -86,7 +89,7 @@ class Notifier:
             <ul>
         """
         for alert in alerts:
-            icon = "🔴" if alert['impact_level'] == 'High' else "🟡"
+            icon = "🔴" if normalize_impact_level(alert.get("impact_level")) == "High" else "🟡"
             
             alert_url = alert['url']
             exact_quote = alert.get('exact_quote', '')

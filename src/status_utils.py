@@ -1,3 +1,6 @@
+from src.date_utils import is_within_review_window, resolve_release_date
+
+
 def normalize_impact_level(raw) -> str:
     if not raw:
         return "Low"
@@ -18,15 +21,18 @@ def has_actionable_recommendation(action) -> bool:
     return normalized not in {"monitoring", "n/a", "none", ""}
 
 
-def resolve_integration_status(analysis: dict) -> str:
+def resolve_integration_status(analysis: dict, freshness_days: int = 30) -> str:
     """
     Map LLM analysis to dashboard status.
     Priority: Action Required > Needs Review > Ready
     """
     impact_level = normalize_impact_level(analysis.get("impact_level"))
     change_type = str(analysis.get("type", "")).lower()
-    release_date = analysis.get("release_date", "N/A")
+    release_date = resolve_release_date(analysis)
     action = analysis.get("action_required", "Monitoring")
+
+    if not is_within_review_window(release_date, freshness_days):
+        return "Ready"
 
     status_map = {
         "High": "Action Required",

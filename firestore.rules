@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasNoSecretFields() {
+      return !request.resource.data.keys().hasAny([
+        'gh_pat',
+        'gl_pat',
+        'gl_trigger_token',
+      ]);
+    }
+
+    match /monitored_urls/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && hasNoSecretFields();
+      allow delete: if isSignedIn();
+    }
+
+    match /intel_reports/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}

@@ -154,7 +154,11 @@ def job():
             freshness=freshness_days,
             scopes=scopes
         )
-        
+
+        # Always persist hash after analysis so irrelevant/stale items are not re-analyzed forever
+        if firebase and update.get('new_hash'):
+            firebase.update_url_hash(update['id'], update['new_hash'])
+
         if analysis.get('is_relevant'):
             resolved_release_date = resolve_release_date(analysis)
             if not is_within_review_window(resolved_release_date, freshness_days):
@@ -162,13 +166,7 @@ def job():
                     f"Update from {update['source']} ({resolved_release_date}) is outside "
                     f"{freshness_days}-day window; skipping alert/status update."
                 )
-                if firebase and update.get('new_hash'):
-                    firebase.update_url_hash(update['id'], update['new_hash'])
                 continue
-
-            # Update hash in Firestore to avoid re-triggering next time (Stateless migration)
-            if firebase and update.get('new_hash'):
-                firebase.update_url_hash(update['id'], update['new_hash'])
 
             alert = {
                 "source": update['source'],
@@ -188,7 +186,7 @@ def job():
             source_id = update.get('id')
             if firebase and source_id:
                 impact_level = normalize_impact_level(analysis.get("impact_level"))
-                resolved_status = resolve_integration_status(analysis)
+                resolved_status = resolve_integration_status(analysis, freshness_days)
                 status_data = {
                     "last_status": resolved_status,
                     "last_impact": analysis['type'],
@@ -220,8 +218,8 @@ def job():
             report_content += "---\n\n"
 
             # 4. Immediate Alerting (if High or Medium Impact)
-            impact_check = str(analysis.get('impact_level', '')).lower()
-            if 'high' in impact_check or 'medium' in impact_check:
+            impact_check = normalize_impact_level(analysis.get('impact_level'))
+            if impact_check in ('High', 'Medium'):
                 logger.info(f"High/Medium impact detected ({analysis['impact_level']}). Sending Slack alert...")
                 notifier.send_slack_alert(alert)
             else:
