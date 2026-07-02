@@ -247,14 +247,13 @@ def job():
             "status": "Ready",
             "alert_count": len(alerts)
         })
-        if not is_manual:
-            digest_alerts = [alert for alert in alerts if should_include_in_digest(alert.get("resolved_status"))]
-            if digest_alerts:
-                notifier.send_digest_email(digest_alerts)
-            else:
-                logger.info("No Action Required / Needs Review items for digest email.")
+        digest_alerts = [alert for alert in alerts if should_include_in_digest(alert.get("resolved_status"))]
+        if digest_alerts:
+            notifier.send_digest_email(digest_alerts)
+        elif alerts:
+            logger.info("Alerts found but none are Action Required / Needs Review; skipping digest email.")
         else:
-            logger.info("Manual run: skipping digest email.")
+            logger.info("No alerts generated this cycle.")
 
     firebase.record_cycle_run()
     logger.info("Intelligence Cycle Completed.")
