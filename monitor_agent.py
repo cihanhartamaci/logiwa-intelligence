@@ -167,12 +167,17 @@ def job():
 
         if analysis.get('is_relevant'):
             resolved_release_date = resolve_release_date(analysis)
-            if not is_within_review_window(resolved_release_date, freshness_days):
+            impact_level = normalize_impact_level(analysis.get("impact_level"))
+            in_window = is_within_review_window(resolved_release_date, freshness_days)
+
+            if not in_window:
                 logger.info(
                     f"Update from {update['source']} ({resolved_release_date}) is outside "
-                    f"{freshness_days}-day window; skipping alert/status update."
+                    f"{freshness_days}-day window."
                 )
-                continue
+                # Manual runs still notify Slack for High/Medium findings (test / deep scan)
+                if not (is_manual and impact_level in ("High", "Medium")):
+                    continue
 
             resolved_status = resolve_integration_status(analysis, freshness_days)
             alert = {
@@ -224,12 +229,12 @@ def job():
             report_content += f"### ✅ Recommended Action\n> {analysis.get('action_required')}\n\n"
             report_content += "---\n\n"
 
-            # 4. Immediate alerting: Slack for Action Required and Needs Review (High/Medium)
-            if should_send_slack_alert(resolved_status):
-                logger.info(f"{resolved_status} for {update['source']}. Sending Slack alert...")
+            # 4. Immediate Slack for LLM High/Medium impact
+            if should_send_slack_alert(analysis):
+                logger.info(f"{impact_level} impact for {update['source']}. Sending Slack alert...")
                 notifier.send_slack_alert(alert)
             else:
-                logger.info(f"Status '{resolved_status}' does not require Slack alert.")
+                logger.info(f"Impact '{analysis.get('impact_level')}' below Slack threshold. Skipping.")
 
         logger.info("Sleeping 10s to respect Rate Limits...")
         time.sleep(10)

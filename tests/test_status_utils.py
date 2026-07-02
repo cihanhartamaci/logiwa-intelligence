@@ -47,9 +47,12 @@ def test_resolve_integration_status_new_capability_medium():
 
 
 def test_should_send_slack_alert_for_high_and_medium():
-    assert should_send_slack_alert("Action Required") is True
-    assert should_send_slack_alert("Needs Review") is True
-    assert should_send_slack_alert("Ready") is False
+    assert should_send_slack_alert({"impact_level": "High"}) is True
+    assert should_send_slack_alert({"impact_level": "High (Breaking)"}) is True
+    assert should_send_slack_alert({"impact_level": "Medium"}) is True
+    assert should_send_slack_alert({"impact_level": "moderate risk"}) is True
+    assert should_send_slack_alert({"impact_level": "Low"}) is False
+    assert should_send_slack_alert({"impact_level": "Ready"}) is False
 
 
 def test_should_include_in_digest():

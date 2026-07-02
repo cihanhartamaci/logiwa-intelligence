@@ -53,9 +53,9 @@ def resolve_integration_status(analysis: dict, freshness_days: int = 30) -> str:
     return status
 
 
-def should_send_slack_alert(resolved_status: str) -> bool:
-    """Immediate Slack for High (Action Required) and Medium (Needs Review) items."""
-    return resolved_status in ("Action Required", "Needs Review")
+def should_send_slack_alert(analysis: dict) -> bool:
+    """Slack when the LLM rates impact High or Medium on a relevant finding."""
+    return normalize_impact_level(analysis.get("impact_level")) in ("High", "Medium")
 
 
 def should_include_in_digest(resolved_status: str) -> bool:
